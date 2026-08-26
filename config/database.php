@@ -5,7 +5,7 @@ function load_local_env(): void {
     static $loaded = false;
     if ($loaded) return;
     $loaded = true;
-    $file = __DIR__ . '/.env';
+    $file = getenv('DB_ENV_FILE') ?: (__DIR__ . '/.env');
     if (!is_file($file) || !is_readable($file)) return;
     $values = parse_ini_file($file, false, INI_SCANNER_RAW);
     if (!is_array($values)) return;
