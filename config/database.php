@@ -23,7 +23,6 @@ function db(): PDO {
     $host = getenv('DB_HOST') ?: '127.0.0.1';
     $name = getenv('DB_NAME') ?: 'village_fund';
     $user = getenv('DB_USER') ?: 'root';
-    $user = getenv('DB_USER') ?: 'root';
     $pass = getenv('DB_PASS') ?: '';
     $port = getenv('DB_PORT') ?: '3306';
 
