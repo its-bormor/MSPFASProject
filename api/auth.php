@@ -7,6 +7,20 @@ $action = $_GET['action'] ?? 'status';
 
 try {
     $pdo = db();
+    if ($action === 'diagnostic') {
+        load_local_env();
+        $keys = ['DB_HOST','DB_NAME','DB_USER','DB_PASS','DB_PORT'];
+        $present = [];
+        foreach ($keys as $k) { $present[$k] = getenv($k) !== false && getenv($k) !== ''; }
+        try {
+            $pdo = db();
+            json_response(['status'=>'success','db'=>'connected','env'=>$present]);
+        } catch (Throwable $e) {
+            $msg = preg_replace('/password|passwd|pwd/i', '[REDACTED]', $e->getMessage());
+            json_response(['status'=>'error','db'=>'failed','env'=>$present,'error'=>$msg], 500);
+        }
+    }
+
     if ($action === 'status') {
         json_response(['status'=>'success','logged_in'=>!empty($_SESSION['user']),'user'=>$_SESSION['user'] ?? null]);
     }
