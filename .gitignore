@@ -1,6 +1,7 @@
 # Local/runtime
 config/.env
-.env
+config/.env.infinityfree
+
 *.log
 .DS_Store
 Thumbs.db
@@ -12,10 +13,24 @@ Thumbs.db
 # Backups and archives
 *_backup.zip
 Project_Backups/
+D:\Work\Project_Backups/
 
 # Uploaded/generated runtime files
-uploads/
-storage/
+uploads/*
+!uploads/.htaccess
+!uploads/.gitkeep
+storage/*
+!storage/.gitkeep
+
+# Local-only deployment helpers
+*.local
+Doc/DEPLOY-NEXT-STEPS.md
+
+
+
+
+
+
 
 # OS/editor
 .vscode/

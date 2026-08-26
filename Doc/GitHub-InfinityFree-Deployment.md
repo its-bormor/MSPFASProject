@@ -8,15 +8,9 @@
 
 ## Repository safety
 
-Never commit:
-- real passwords
-- MySQL passwords
-- FTP passwords
-- API tokens
-- production `.env`
-- database dumps containing real member data
+Never commit real passwords, MySQL passwords, FTP passwords, API tokens, production `.env`, or database dumps containing real member data.
 
-Use `.env.example` for configuration templates. Production credentials must be entered through the hosting environment/configuration and never stored in Git.
+Use `.env.example` for configuration templates. Production credentials must be entered outside Git and never stored in source control.
 
 ## Deployment flow
 
@@ -36,16 +30,23 @@ Database deployment is separate from file deployment. Export/import SQL only whe
 
 Passwords are intentionally not documented here.
 
+## GitHub Actions setup
+
+The workflow in `.github/workflows/deploy-infinityfree.yml` deploys on pushes to `master` and can also be started manually from the Actions tab.
+
+Create these Repository secrets in GitHub: `INFINITYFREE_FTP_HOST`, `INFINITYFREE_FTP_USERNAME`, and `INFINITYFREE_FTP_PASSWORD`. The workflow uses FTP port 21 and targets `htdocs/`.
+
+Do not put the FTP password in YAML, source files, commits, or chat messages.
+
 ## Next manual steps
 
-1. Create a private GitHub repository.
-2. Add the GitHub repository as `origin` for this project.
-3. Push the current code after reviewing untracked project files.
-4. Create GitHub Actions secrets for FTP deployment; do not put credentials in workflow YAML.
-5. Add a deployment workflow that uploads only production files and excludes `.git`, `.serena`, `Doc`, `database` tooling, local test artifacts, and local-only configuration.
-6. Import the prepared production SQL database separately.
-7. Configure production database credentials on the hosting side.
-8. Deploy and run smoke tests: login, members, requests, procurement, receiving, delivery, payments, reports.
+1. Add the three FTP repository secrets in GitHub.
+2. Confirm the InfinityFree FTP document root is `htdocs/`. If the hosting account shows a different document-root path, update `server-dir` before deploying.
+3. Push the workflow commit.
+4. Watch the GitHub Actions run and confirm files reach the site.
+5. Import the prepared production SQL database separately through InfinityFree's database tools/phpMyAdmin.
+6. Configure production database credentials outside Git; do not commit the real password.
+7. Deploy and run smoke tests: login, members, requests, procurement, receiving, delivery, payments, reports.
 
 ## Rollback
 
