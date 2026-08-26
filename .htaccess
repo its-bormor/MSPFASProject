@@ -1,0 +1,24 @@
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Never expose local configuration, development tooling, or project metadata.
+<FilesMatch "^(\.env|.*\.env|composer\.(json|lock)|package(-lock)?\.json|server\.js|README.*|IMPLEMENTATION-STATUS\.md)$">
+    Require all denied
+</FilesMatch>
+
+RedirectMatch 404 ^/\.git(?:/|$)
+RedirectMatch 404 ^/\.serena(?:/|$)
+RedirectMatch 404 ^/database(?:/|$)
+RedirectMatch 404 ^/Doc(?:/|$)

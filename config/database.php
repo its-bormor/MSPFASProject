@@ -1,9 +1,24 @@
 <?php
 declare(strict_types=1);
 
+function load_local_env(): void {
+    static $loaded = false;
+    if ($loaded) return;
+    $loaded = true;
+    $file = __DIR__ . '/.env';
+    if (!is_file($file) || !is_readable($file)) return;
+    $values = parse_ini_file($file, false, INI_SCANNER_RAW);
+    if (!is_array($values)) return;
+    foreach ($values as $key => $value) {
+        if (!is_string($key) || $key === '' || getenv($key) !== false) continue;
+        putenv($key . '=' . (string)$value);
+    }
+}
+
 function db(): PDO {
     static $pdo = null;
     if ($pdo instanceof PDO) return $pdo;
+    load_local_env();
 
     $host = getenv('DB_HOST') ?: '127.0.0.1';
     $name = getenv('DB_NAME') ?: 'village_fund';
