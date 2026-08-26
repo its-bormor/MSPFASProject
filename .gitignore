@@ -1,0 +1,22 @@
+# Local/runtime
+config/.env
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# Local database/runtime dumps
+*.sql
+*.sql.gz
+
+# Backups and archives
+*_backup.zip
+Project_Backups/
+
+# Uploaded/generated runtime files
+uploads/
+storage/
+
+# OS/editor
+.vscode/
+.idea/
