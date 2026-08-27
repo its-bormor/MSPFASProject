@@ -22,14 +22,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p deploy-config
-          printf 'DB_HOST=%s\nDB_NAME=%s\nDB_USER=%s\nDB_PASS=%s\nDB_PORT=%s\n' "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$DB_PORT" > deploy-config/.env
+          cat > deploy-config/runtime.php <<PHP
+<?php
+return [
+    'DB_HOST' => getenv('DB_HOST'),
+    'DB_NAME' => getenv('DB_NAME'),
+    'DB_USER' => getenv('DB_USER'),
+    'DB_PASS' => getenv('DB_PASS'),
+    'DB_PORT' => getenv('DB_PORT'),
+];
+PHP
           cp config/.htaccess deploy-config/.htaccess
-          test "$(wc -l < deploy-config/.env)" -eq 5
-          grep -q '^DB_HOST=' deploy-config/.env
-          grep -q '^DB_NAME=' deploy-config/.env
-          grep -q '^DB_USER=' deploy-config/.env
-          grep -q '^DB_PASS=' deploy-config/.env
-          grep -q '^DB_PORT=' deploy-config/.env
+          test -f deploy-config/runtime.php
+          test "$(grep -c "=> getenv('DB_" deploy-config/runtime.php)" -eq 5
 
       - name: Deploy application files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

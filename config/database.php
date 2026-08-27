@@ -6,7 +6,20 @@ function load_local_env(): void {
     if ($loaded) return;
     $loaded = true;
     $file = getenv('DB_ENV_FILE') ?: (__DIR__ . '/.env');
-    if (!is_file($file) || !is_readable($file)) return;
+    if (!is_file($file) || !is_readable($file)) {
+        $runtime = __DIR__ . '/runtime.php';
+        if (is_file($runtime) && is_readable($runtime)) {
+            $values = require $runtime;
+            if (is_array($values)) {
+                foreach ($values as $key => $value) {
+                    if (is_string($key) && $key !== '' && getenv($key) === false) {
+                        putenv($key . '=' . (string)$value);
+                    }
+                }
+            }
+        }
+        return;
+    }
     $values = parse_ini_file($file, false, INI_SCANNER_RAW);
     if (!is_array($values)) return;
     foreach ($values as $key => $value) {
