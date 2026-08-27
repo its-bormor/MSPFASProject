@@ -106,47 +106,7 @@ jobs:
             **/storage/**
             **/*.log
 
-      - name: Force upload production env via FTP
-        env:
-          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
-          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
-          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+      - name: Deployment completed
         run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --ftp-create-dirs --ftp-pasv \
-            --user "$FTP_USER:$FTP_PASS" \
-            -T config/.env "ftp://$FTP_HOST/htdocs/config/.env"
-          echo "Production environment file uploaded"
-
-      - name: Force upload critical PHP files via FTP
-        env:
-          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
-          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
-          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --ftp-pasv \
-            --user "$FTP_USER:$FTP_PASS" \
-            -T config/database.php "ftp://$FTP_HOST/htdocs/config/database.php"
-          curl --fail --silent --show-error --ftp-pasv \
-            --user "$FTP_USER:$FTP_PASS" \
-            -T api/diagnostic.php "ftp://$FTP_HOST/htdocs/api/diagnostic.php"
-          echo "Critical PHP files uploaded"
-
-      - name: Verify remote files via FTP
-        env:
-          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
-          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
-          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
-        run: |
-          set -euo pipefail
-          tmp=$(mktemp)
-          trap 'rm -f "$tmp"' EXIT
-          printf '%s\n' \
-            'cd htdocs' \
-            'size config/.env' \
-            'size config/database.php' \
-            'size api/diagnostic.php' \
-            'quit' > "$tmp"
-          ftp -inv "$FTP_HOST" < "$tmp" 2>&1 | grep -E '213 |226 |257 ' || true
-          echo "Remote verification command completed"
+          echo "Deployment completed through FTP-Deploy-Action"
+          echo "Production config/.env was generated for this deployment."
