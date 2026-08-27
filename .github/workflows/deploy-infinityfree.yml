@@ -17,62 +17,58 @@ jobs:
           FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
           FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
           FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
-          ENV_FILE: ${{ secrets.ENV_FILE }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_HOST: ${{ secrets.INFINITYFREE_DB_HOST }}
+          DB_NAME: ${{ secrets.INFINITYFREE_DB_NAME }}
+          DB_USER: ${{ secrets.INFINITYFREE_DB_USERNAME }}
+          DB_PASS: ${{ secrets.INFINITYFREE_DB_PASSWORD }}
         run: |
           set -euo pipefail
 
           [ -n "$FTP_HOST" ] || { echo "ERROR: INFINITYFREE_FTP_HOST is missing"; exit 1; }
           [ -n "$FTP_USER" ] || { echo "ERROR: INFINITYFREE_FTP_USERNAME is missing"; exit 1; }
           [ -n "$FTP_PASS" ] || { echo "ERROR: INFINITYFREE_FTP_PASSWORD is missing"; exit 1; }
+          [ -n "$DB_HOST" ] || { echo "ERROR: INFINITYFREE_DB_HOST is missing"; exit 1; }
+          [ -n "$DB_NAME" ] || { echo "ERROR: INFINITYFREE_DB_NAME is missing"; exit 1; }
+          [ -n "$DB_USER" ] || { echo "ERROR: INFINITYFREE_DB_USERNAME is missing"; exit 1; }
+          [ -n "$DB_PASS" ] || { echo "ERROR: INFINITYFREE_DB_PASSWORD is missing"; exit 1; }
 
-          if [ -n "$ENV_FILE" ]; then
-            echo "Database configuration: ENV_FILE secret is configured"
-          elif [ -n "$DB_HOST" ] && [ -n "$DB_NAME" ] && [ -n "$DB_USER" ] && [ -n "$DB_PASS" ]; then
-            echo "Database configuration: individual DB_* secrets are configured"
-          else
-            echo "ERROR: configure ENV_FILE, or DB_HOST/DB_NAME/DB_USER/DB_PASS"
-            exit 1
-          fi
+          echo "✓ FTP credentials are configured"
+          echo "✓ InfinityFree database secrets are configured"
 
-      - name: Generate production environment file
+      - name: Generate production runtime configuration
         env:
-          ENV_FILE: ${{ secrets.ENV_FILE }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_HOST: ${{ secrets.INFINITYFREE_DB_HOST }}
+          DB_NAME: ${{ secrets.INFINITYFREE_DB_NAME }}
+          DB_USER: ${{ secrets.INFINITYFREE_DB_USERNAME }}
+          DB_PASS: ${{ secrets.INFINITYFREE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           mkdir -p config
           umask 077
 
-          if [ -n "$ENV_FILE" ]; then
-            printf '%s' "$ENV_FILE" > config/.env
-          else
-            {
-              printf 'DB_HOST=%s\n' "$DB_HOST"
-              printf 'DB_NAME=%s\n' "$DB_NAME"
-              printf 'DB_USER=%s\n' "$DB_USER"
-              printf 'DB_PASS=%s\n' "$DB_PASS"
-              if [ -n "$DB_PORT" ]; then
-                printf 'DB_PORT=%s\n' "$DB_PORT"
-              else
-                printf 'DB_PORT=3306\n'
-              fi
-            } > config/.env
-          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
 
-          test -s config/.env
-          for key in DB_HOST DB_NAME DB_USER DB_PASS DB_PORT; do
-            grep -q "^${key}=" config/.env || { echo "ERROR: ${key} is missing from generated config/.env"; exit 1; }
-          done
-          echo "Production environment file created with all required keys"
+          def php_quote(value):
+              return "'" + value.replace('\\', '\\\\').replace("'", "\\'") + "'"
+
+          content = "<?php\nreturn [\n"
+          content += f"    'DB_HOST' => {php_quote(os.environ['DB_HOST'])},\n"
+          content += f"    'DB_NAME' => {php_quote(os.environ['DB_NAME'])},\n"
+          content += f"    'DB_USER' => {php_quote(os.environ['DB_USER'])},\n"
+          content += f"    'DB_PASS' => {php_quote(os.environ['DB_PASS'])},\n"
+          content += "    'DB_PORT' => '3306',\n];\n"
+          Path('config/runtime.php').write_text(content, encoding='utf-8')
+          PY
+
+          test -s config/runtime.php
+          grep -q "'DB_HOST'" config/runtime.php
+          grep -q "'DB_NAME'" config/runtime.php
+          grep -q "'DB_USER'" config/runtime.php
+          grep -q "'DB_PASS'" config/runtime.php
+          php -l config/runtime.php
+          echo "✓ config/runtime.php generated (secret values not printed)"
 
       - name: Validate PHP
         run: |
