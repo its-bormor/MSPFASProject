@@ -1,0 +1,32 @@
+/* Final mobile structural layout fixes */
+@media (max-width: 900px) {
+  #app, .app-shell, .main, .content, .content > *, .grid, .grid > *, .card, .card-header, .card-header > div { min-width: 0; max-width: 100%; }
+  .request-layout.member-request-layout { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; }
+  .request-layout.member-request-layout > .card { width:100% !important; min-width:0 !important; }
+  .request-layout.member-request-layout .catalog-grid { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .procurement-page { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; }
+  .procurement-page > .card { width:100% !important; min-width:0 !important; }
+  .procurement-page .table-wrap, .procurement-detail-table, .procurement-delivery-table, .receiving-inspection-table { width:100% !important; max-width:100% !important; overflow-x:visible !important; }
+}
+@media (max-width: 600px) {
+  .request-layout.member-request-layout .catalog-grid { grid-template-columns:minmax(0,1fr) !important; }
+  .request-layout.member-request-layout .request-summary { width:100%; }
+  .procurement-page .card-header { width:100%; }
+  .procurement-page .card-header > div { width:100%; }
+  .procurement-page .procurement-table .table, .procurement-detail-table .table, .procurement-delivery-table .table, .receiving-inspection-table .table { display:block !important; width:100% !important; min-width:0 !important; }
+  .procurement-page .procurement-table .table thead, .procurement-detail-table .table thead, .procurement-delivery-table .table thead, .receiving-inspection-table .table thead { display:none !important; }
+  .procurement-page .procurement-table .table tbody, .procurement-detail-table .table tbody, .procurement-delivery-table .table tbody, .receiving-inspection-table .table tbody { display:grid !important; grid-template-columns:minmax(0,1fr) !important; gap:10px !important; }
+  .procurement-page .procurement-table .table tr, .procurement-detail-table .table tr, .procurement-delivery-table .table tr, .receiving-inspection-table .table tr { display:block !important; width:100% !important; min-width:0 !important; padding:12px !important; margin:0 !important; background:#fff; border:1px solid var(--border); border-radius:10px; }
+  .procurement-page .procurement-table .table td, .procurement-detail-table .table td, .procurement-delivery-table .table td, .receiving-inspection-table .table td { display:block !important; width:100% !important; min-width:0 !important; max-width:100% !important; padding:5px 0 !important; border:0 !important; overflow-wrap:anywhere; white-space:normal !important; }
+  .procurement-page .procurement-table .table td:first-child, .procurement-detail-table .table td:first-child, .procurement-delivery-table .table td:first-child, .receiving-inspection-table .table td:first-child { font-weight:700; padding-bottom:8px !important; }
+  .procurement-page .procurement-table .table td:last-child .btn, .procurement-delivery-table .table td:last-child .btn { width:100%; }
+  .receiving-inspection-table .table td:nth-child(3), .receiving-inspection-table .table td:nth-child(4) { margin-top:4px; }
+  .receiving-inspection-table .table td:nth-child(3)::before { content:'จำนวนที่ตรวจนับ'; display:block; color:var(--muted); font-weight:600; margin-bottom:5px; }
+  .receiving-inspection-table .table td:nth-child(4)::before { content:'สภาพสินค้า'; display:block; color:var(--muted); font-weight:600; margin-bottom:5px; }
+  .procurement-detail-table .form-control, .receiving-inspection-table .form-control, .receiving-inspection-table .form-select { width:100% !important; max-width:100% !important; min-width:0 !important; }
+  .modal-backdrop { padding:8px !important; overflow-y:auto; overflow-x:hidden; }
+  .modal { width:100% !important; max-width:100% !important; min-width:0 !important; }
+  .modal-body { width:100%; max-width:100%; min-width:0; overflow-x:hidden !important; }
+  .modal-foot { width:100%; min-width:0; }
+  .modal-foot .btn { min-width:0 !important; }
+}
