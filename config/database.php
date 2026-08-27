@@ -5,7 +5,11 @@ function load_local_env(): void {
     static $loaded = false;
     if ($loaded) return;
     $loaded = true;
-    $file = getenv('DB_ENV_FILE') ?: (__DIR__ . '/.env');
+    $file = getenv('DB_ENV_FILE');
+    if (!$file) {
+        $renderSecret = '/etc/secrets/.env';
+        $file = is_file($renderSecret) ? $renderSecret : (__DIR__ . '/.env');
+    }
     if (!is_file($file) || !is_readable($file)) {
         $runtime = __DIR__ . '/runtime.php';
         if (is_file($runtime) && is_readable($runtime)) {
