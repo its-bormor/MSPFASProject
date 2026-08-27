@@ -1,5 +1,10 @@
 /* Final mobile structural layout fixes */
 @media (max-width: 900px) {
+  /* The sidebar is off-canvas on mobile, so the main content must reclaim its width. */
+  .main { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+  .content { width: 100% !important; max-width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
+  .member-request-page, .member-request-page > .card { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+
   #app, .app-shell, .main, .content, .content > *, .grid, .grid > *, .card, .card-header, .card-header > div { min-width: 0; max-width: 100%; }
   .request-layout.member-request-layout { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; }
   .request-layout.member-request-layout > .card { width:100% !important; min-width:0 !important; }
