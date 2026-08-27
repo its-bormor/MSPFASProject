@@ -77,7 +77,7 @@ jobs:
           php -l api/diagnostic.php
 
       - name: Deploy application files via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.INFINITYFREE_FTP_HOST }}
           username: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
@@ -87,6 +87,8 @@ jobs:
           server-dir: ./htdocs/
           dangerous-clean-slate: false
           state-name: .ftp-deploy-sync-state.json
+          log-level: verbose
+          timeout: 120000
           exclude: |
             **/.git*/**
             **/.serena/**
@@ -102,7 +104,31 @@ jobs:
             **/storage/**
             **/*.log
 
+      - name: Verify production deployment
+        run: |
+          set -euo pipefail
+          echo "Waiting for InfinityFree to serve the new files..."
+          sleep 5
+          response="$(curl --fail --silent --show-error --max-time 20 https://mspfasproject.lovestoblog.com/api/diagnostic.php)"
+          echo "$response"
+          python3 - <<'PY' "$response"
+          import json, sys
+          data = json.loads(sys.argv[1])
+          runtime = data.get('runtime_debug', {})
+          if not runtime.get('exists') or not runtime.get('readable'):
+              raise SystemExit('ERROR: config/runtime.php is not present/readable on InfinityFree')
+          if not runtime.get('valid_array'):
+              raise SystemExit('ERROR: config/runtime.php is not a valid PHP array')
+          present = runtime.get('values_present', {})
+          required = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS']
+          missing = [key for key in required if not present.get(key)]
+          if missing:
+              raise SystemExit('ERROR: runtime.php is missing required keys: ' + ', '.join(missing))
+          if data.get('status') != 'success' or data.get('db') != 'connected':
+              raise SystemExit('ERROR: deployment reached the site, but database connection failed')
+          print('SUCCESS: production runtime config is deployed and database connection works')
+          PY
+
       - name: Deployment completed
         run: |
-          echo "Deployment completed through FTP-Deploy-Action"
-          echo "Production config/.env was generated for this deployment."
+          echo "Deployment completed and production database connectivity verified."

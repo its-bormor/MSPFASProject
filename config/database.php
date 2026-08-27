@@ -52,11 +52,15 @@ function db(): PDO {
     if ($pdo instanceof PDO) return $pdo;
     load_local_env();
 
-    $host = getenv('DB_HOST') ?: '127.0.0.1';
-    $name = getenv('DB_NAME') ?: 'village_fund';
-    $user = getenv('DB_USER') ?: 'root';
-    $pass = getenv('DB_PASS') ?: '';
+    $host = getenv('DB_HOST');
+    $name = getenv('DB_NAME');
+    $user = getenv('DB_USER');
+    $pass = getenv('DB_PASS');
     $port = getenv('DB_PORT') ?: '3306';
+
+    if ($host === false || $name === false || $user === false || $pass === false || $host === '' || $name === '' || $user === '') {
+        throw new RuntimeException('Production database configuration is missing. Expected config/runtime.php or a valid DB_ENV_FILE.');
+    }
 
     $pdo = new PDO("mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4", $user, $pass, [
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
