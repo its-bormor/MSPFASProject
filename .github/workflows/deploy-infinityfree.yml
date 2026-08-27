@@ -12,28 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate deployment secrets
-        env:
-          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
-          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
-          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-        run: |
-          set -euo pipefail
-          test -n "$FTP_HOST"
-          test -n "$FTP_USER"
-          test -n "$FTP_PASS"
-          test -n "$DB_HOST"
-          test -n "$DB_NAME"
-          test -n "$DB_USER"
-          test -n "$DB_PASS"
-          test -n "$DB_PORT"
-
-      - name: Generate production environment file
+      - name: Create production environment file
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -42,25 +21,15 @@ jobs:
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
           set -euo pipefail
-          umask 077
-          printf '%s\n' \
-            "DB_HOST=$DB_HOST" \
-            "DB_NAME=$DB_NAME" \
-            "DB_USER=$DB_USER" \
-            "DB_PASS=$DB_PASS" \
-            "DB_PORT=$DB_PORT" \
-            > config/.env
-
-      - name: Verify generated production environment file
-        run: |
-          set -euo pipefail
-          test -f config/.env
-          test "$(wc -l < config/.env)" -eq 5
-          grep -q '^DB_HOST=' config/.env
-          grep -q '^DB_NAME=' config/.env
-          grep -q '^DB_USER=' config/.env
-          grep -q '^DB_PASS=' config/.env
-          grep -q '^DB_PORT=' config/.env
+          mkdir -p deploy-config
+          printf 'DB_HOST=%s\nDB_NAME=%s\nDB_USER=%s\nDB_PASS=%s\nDB_PORT=%s\n' "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$DB_PORT" > deploy-config/.env
+          cp config/.htaccess deploy-config/.htaccess
+          test "$(wc -l < deploy-config/.env)" -eq 5
+          grep -q '^DB_HOST=' deploy-config/.env
+          grep -q '^DB_NAME=' deploy-config/.env
+          grep -q '^DB_USER=' deploy-config/.env
+          grep -q '^DB_PASS=' deploy-config/.env
+          grep -q '^DB_PORT=' deploy-config/.env
 
       - name: Deploy application files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -89,7 +58,7 @@ jobs:
             **/storage/**
             **/*.log
 
-      - name: Deploy production environment file via FTP
+      - name: Deploy production config via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.INFINITYFREE_FTP_HOST }}
@@ -97,13 +66,10 @@ jobs:
           password: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
           protocol: ftp
           port: 21
-          local-dir: ./config/
+          local-dir: ./deploy-config/
           server-dir: ./htdocs/config/
           dangerous-clean-slate: false
-          state-name: .ftp-deploy-env-sync-state.json
+          state-name: .ftp-deploy-config-sync-state.json
           log-level: verbose
           exclude: |
             **/.git*/**
-            .env.example
-            .env.infinityfree.example
-            .htaccess
