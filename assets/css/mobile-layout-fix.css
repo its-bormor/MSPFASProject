@@ -45,6 +45,19 @@
 
 /* Final isolation for member request: remove any inherited desktop/grid constraints */
 @media (max-width:900px){.app-shell{display:block!important;width:100%!important;min-width:0!important}.main{display:block!important;position:relative!important;width:100%!important;max-width:none!important;margin:0!important;min-width:0!important}.content{display:block!important;position:relative!important;width:100%!important;max-width:none!important;margin:0!important;padding:13px!important;min-width:0!important;box-sizing:border-box!important}.content>#content{display:block!important;position:relative!important;float:none!important;clear:both!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}.content>#content>.member-request-page{display:block!important;width:100%!important;max-width:none!important;min-width:0!important}.content>#content>.member-request-page>.member-catalog-card,.content>#content>.member-request-page>.member-request-summary{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;position:relative!important;float:none!important;clear:both!important;left:auto!important;right:auto!important}.content>#content>.member-request-page>.member-catalog-card{margin:0 0 18px 0!important}.content>#content>.member-request-page>.member-request-summary{margin:0!important}}
+/* Member request selection is a standalone full-width screen. It must never share a row with the summary form. */
+.member-request-root{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+.member-select-only{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+.member-catalog-only{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important}
+.member-catalog-list{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;width:100%!important;max-width:none!important;min-width:0!important}
+.member-catalog-list .catalog-card{width:100%!important;min-width:0!important}
+#member-selection-status{margin:18px 0 10px}
+@media(max-width:900px){
+  .member-request-root{width:calc(100vw - 26px)!important;max-width:calc(100vw - 26px)!important;position:relative!important;left:50%!important;transform:translateX(-50%)!important}
+  .member-catalog-list{grid-template-columns:minmax(0,1fr)!important;gap:12px!important}
+  .member-catalog-only{padding:16px!important}
+}
+
 /* Emergency structural isolation for member request */
 @media (max-width:900px){
 .app-shell:has(.member-request-page),.app-shell:has(.member-request-page) .main,.app-shell:has(.member-request-page) .content,.app-shell:has(.member-request-page) #content{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;box-sizing:border-box!important}
