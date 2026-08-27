@@ -17,27 +17,19 @@ jobs:
           FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
           FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
           FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
         run: |
           set -euo pipefail
-          test -n $FTP_HOST && test -n $FTP_USER && test -n $FTP_PASS
-          test -n $DB_HOST && test -n $DB_NAME && test -n $DB_USER && test -n $DB_PASS && test -n $DB_PORT
+          test -n "$FTP_HOST" && test -n "$FTP_USER" && test -n "$FTP_PASS"
+          test -n "$ENV_FILE"
 
       - name: Generate production environment file
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
         run: |
           set -euo pipefail
           umask 077
-          printf DB_HOST=%s\nDB_NAME=%s\nDB_USER=%s\nDB_PASS=%s\nDB_PORT=%s\n $DB_HOST $DB_NAME $DB_USER $DB_PASS $DB_PORT > config/.env
+          printf '%s\n' "$ENV_FILE" > config/.env
           test -s config/.env
 
       - name: Deploy application files via FTP
