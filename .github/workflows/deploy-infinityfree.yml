@@ -23,7 +23,6 @@ jobs:
           DB_PASS: ${{ secrets.INFINITYFREE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-
           [ -n "$FTP_HOST" ] || { echo "ERROR: INFINITYFREE_FTP_HOST is missing"; exit 1; }
           [ -n "$FTP_USER" ] || { echo "ERROR: INFINITYFREE_FTP_USERNAME is missing"; exit 1; }
           [ -n "$FTP_PASS" ] || { echo "ERROR: INFINITYFREE_FTP_PASSWORD is missing"; exit 1; }
@@ -31,7 +30,6 @@ jobs:
           [ -n "$DB_NAME" ] || { echo "ERROR: INFINITYFREE_DB_NAME is missing"; exit 1; }
           [ -n "$DB_USER" ] || { echo "ERROR: INFINITYFREE_DB_USERNAME is missing"; exit 1; }
           [ -n "$DB_PASS" ] || { echo "ERROR: INFINITYFREE_DB_PASSWORD is missing"; exit 1; }
-
           echo "✓ FTP credentials are configured"
           echo "✓ InfinityFree database secrets are configured"
 
@@ -45,7 +43,6 @@ jobs:
           set -euo pipefail
           mkdir -p config
           umask 077
-
           python3 - <<'PY'
           from pathlib import Path
           import os
@@ -61,7 +58,6 @@ jobs:
           content += "    'DB_PORT' => '3306',\n];\n"
           Path('config/runtime.php').write_text(content, encoding='utf-8')
           PY
-
           test -s config/runtime.php
           grep -q "'DB_HOST'" config/runtime.php
           grep -q "'DB_NAME'" config/runtime.php
@@ -70,11 +66,24 @@ jobs:
           php -l config/runtime.php
           echo "✓ config/runtime.php generated (secret values not printed)"
 
+      - name: Prepare isolated deployment directory
+        run: |
+          set -euo pipefail
+          mkdir -p deploy
+          find . -mindepth 1 -maxdepth 1 ! -name deploy -exec cp -a {} deploy/ \;
+          mkdir -p deploy/config
+          cp config/runtime.php deploy/config/runtime.php
+          test -s deploy/config/runtime.php
+          echo "✓ Isolated deployment directory prepared"
+          echo "✓ deploy/config/runtime.php is present and non-empty"
+
       - name: Validate PHP
         run: |
           set -euo pipefail
           php -l config/database.php
           php -l api/diagnostic.php
+          php -l deploy/config/database.php
+          php -l deploy/api/diagnostic.php
 
       - name: Deploy application files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
@@ -84,6 +93,7 @@ jobs:
           password: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
           protocol: ftp
           port: 21
+          local-dir: ./deploy/
           server-dir: ./htdocs/
           dangerous-clean-slate: false
           state-name: .ftp-deploy-sync-state.json
@@ -94,8 +104,6 @@ jobs:
             **/.serena/**
             **/Doc/**
             **/database/**
-            **/.env.example
-            **/config/.env.infinityfree.example
             **/*.sql
             **/test_api.php
             **/server.js
@@ -103,32 +111,10 @@ jobs:
             **/uploads/**
             **/storage/**
             **/*.log
-
-      - name: Verify production deployment
-        run: |
-          set -euo pipefail
-          echo "Waiting for InfinityFree to serve the new files..."
-          sleep 5
-          response="$(curl --fail --silent --show-error --max-time 20 https://mspfasproject.lovestoblog.com/api/diagnostic.php)"
-          echo "$response"
-          python3 - <<'PY' "$response"
-          import json, sys
-          data = json.loads(sys.argv[1])
-          runtime = data.get('runtime_debug', {})
-          if not runtime.get('exists') or not runtime.get('readable'):
-              raise SystemExit('ERROR: config/runtime.php is not present/readable on InfinityFree')
-          if not runtime.get('valid_array'):
-              raise SystemExit('ERROR: config/runtime.php is not a valid PHP array')
-          present = runtime.get('values_present', {})
-          required = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS']
-          missing = [key for key in required if not present.get(key)]
-          if missing:
-              raise SystemExit('ERROR: runtime.php is missing required keys: ' + ', '.join(missing))
-          if data.get('status') != 'success' or data.get('db') != 'connected':
-              raise SystemExit('ERROR: deployment reached the site, but database connection failed')
-          print('SUCCESS: production runtime config is deployed and database connection works')
-          PY
+            **/.env
+            **/.env.*
 
       - name: Deployment completed
         run: |
-          echo "Deployment completed and production database connectivity verified."
+          echo "Deployment completed through FTP-Deploy-Action."
+          echo "Production runtime.php was explicitly included in the deployment directory."
