@@ -30,3 +30,8 @@
   .modal-foot { width:100%; min-width:0; }
   .modal-foot .btn { min-width:0 !important; }
 }
+
+/* Member request: catalog first, summary below, details in review modal */
+.member-request-page{display:flex;flex-direction:column;gap:18px;width:100%;min-width:0}.member-catalog-card,.member-request-summary{width:100%;min-width:0}.member-catalog-grid{width:100%;min-width:0}.member-review-btn{margin-top:18px}.request-review{min-width:0;max-width:100%;overflow-wrap:anywhere}.request-review .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.request-docs label{display:flex;align-items:center;gap:7px;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:8px}.review-total{font-size:1.05rem;margin-bottom:16px}
+@media (min-width:901px){.member-catalog-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.member-request-page{max-width:100%}}
+@media (max-width:600px){.member-request-page{gap:12px}.member-catalog-grid{grid-template-columns:1fr!important}.member-request-summary .card-header{margin-bottom:8px}.request-review .form-grid,.request-docs{grid-template-columns:1fr!important}.request-review .form-control{width:100%;min-width:0;max-width:100%;box-sizing:border-box}.member-review-btn{min-height:46px}.catalog-card{min-width:0;width:100%}.catalog-body{min-width:0}.qty-control{max-width:100%}}
