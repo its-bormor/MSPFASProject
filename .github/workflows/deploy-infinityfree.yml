@@ -68,3 +68,13 @@ jobs:
           curl --fail --silent --show-error --ftp-create-dirs --ftp-pasv \
             --user $FTP_USER:$FTP_PASS \
             -T config/.env ftp://$FTP_HOST/htdocs/config/.env
+
+      - name: Force upload critical PHP files via FTP
+        env:
+          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
+          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --ftp-pasv --user "$FTP_USER:$FTP_PASS" -T config/database.php "ftp://$FTP_HOST/htdocs/config/database.php"
+          curl --fail --silent --show-error --ftp-pasv --user "$FTP_USER:$FTP_PASS" -T api/diagnostic.php "ftp://$FTP_HOST/htdocs/api/diagnostic.php"

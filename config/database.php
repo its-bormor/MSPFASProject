@@ -5,30 +5,42 @@ function load_local_env(): void {
     static $loaded = false;
     if ($loaded) return;
     $loaded = true;
+
     $file = getenv('DB_ENV_FILE');
     if (!$file) {
         $renderSecret = '/etc/secrets/.env';
         $file = is_file($renderSecret) ? $renderSecret : (__DIR__ . '/.env');
     }
-    if (!is_file($file) || !is_readable($file)) {
-        $runtime = __DIR__ . '/runtime.php';
-        if (is_file($runtime) && is_readable($runtime)) {
-            $values = require $runtime;
-            if (is_array($values)) {
-                foreach ($values as $key => $value) {
-                    if (is_string($key) && $key !== '' && getenv($key) === false) {
-                        putenv($key . '=' . (string)$value);
-                    }
+
+    if (is_file($file) && is_readable($file)) {
+        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (is_array($lines)) {
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '' || substr($line, 0, 1) === '#') continue;
+                if (strpos($line, '=') === false) continue;
+                [$key, $value] = explode('=', $line, 2);
+                $key = trim($key);
+                $value = trim($value);
+                if ($key === '' || getenv($key) !== false) continue;
+                if (strlen($value) >= 2 && (($value[0] === '"' && $value[-1] === '"') || ($value[0] === "'" && $value[-1] === "'"))) {
+                    $value = substr($value, 1, -1);
+                }
+                putenv($key . '=' . $value);
+            }
+        }
+    }
+
+    $runtime = __DIR__ . '/runtime.php';
+    if (is_file($runtime) && is_readable($runtime)) {
+        $values = require $runtime;
+        if (is_array($values)) {
+            foreach ($values as $key => $value) {
+                if (is_string($key) && $key !== '' && getenv($key) === false) {
+                    putenv($key . '=' . (string)$value);
                 }
             }
         }
-        return;
-    }
-    $values = parse_ini_file($file, false, INI_SCANNER_RAW);
-    if (!is_array($values)) return;
-    foreach ($values as $key => $value) {
-        if (!is_string($key) || $key === '' || getenv($key) !== false) continue;
-        putenv($key . '=' . (string)$value);
     }
 }
 

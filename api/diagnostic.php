@@ -10,7 +10,7 @@ try {
      $render_secret = '/etc/secrets/.env';
      $env_file = is_file($render_secret) ? $render_secret : (__DIR__.'/../config/.env');
  }
- $env_debug=['file'=>$env_file,'exists'=>is_file($env_file),'readable'=>is_readable($env_file)];
+ $env_debug=['file'=>$env_file,'exists'=>is_file($env_file),'readable'=>is_readable($env_file),'size'=>is_file($env_file)?filesize($env_file):null,'mtime'=>is_file($env_file)?filemtime($env_file):null];
  if (is_file($env_file) && is_readable($env_file)) {
      $parsed=parse_ini_file($env_file,false,INI_SCANNER_RAW);
      $env_debug['parse_ok']=is_array($parsed);
