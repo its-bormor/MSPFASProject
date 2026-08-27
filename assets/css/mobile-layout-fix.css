@@ -6,16 +6,16 @@
   .member-request-page, .member-request-page > .card { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
 
   #app, .app-shell, .main, .content, .content > *, .grid, .grid > *, .card, .card-header, .card-header > div { min-width: 0; max-width: 100%; }
-  .request-layout.member-request-layout { display:flex !important; flex-direction:column !important; align-items:stretch !important; width:100% !important; max-width:100% !important; }
-  .request-layout.member-request-layout > .card { width:100% !important; min-width:0 !important; }
-  .request-layout.member-request-layout .catalog-grid { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .request-flow-vertical { display:flex !important; flex-direction:column !important; align-items:stretch !important; width:100% !important; max-width:100% !important; }
+  .request-flow-vertical > .card { width:100% !important; min-width:0 !important; }
+  .request-flow-vertical .catalog-grid { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); }
   .procurement-page { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; }
   .procurement-page > .card { width:100% !important; min-width:0 !important; }
   .procurement-page .table-wrap, .procurement-detail-table, .procurement-delivery-table, .receiving-inspection-table { width:100% !important; max-width:100% !important; overflow-x:visible !important; }
 }
 @media (max-width: 600px) {
-  .request-layout.member-request-layout .catalog-grid { grid-template-columns:minmax(0,1fr) !important; }
-  .request-layout.member-request-layout .request-summary { width:100%; }
+  .request-flow-vertical .catalog-grid { grid-template-columns:minmax(0,1fr) !important; }
+  .request-flow-vertical .request-summary { width:100%; }
   .procurement-page .card-header { width:100%; }
   .procurement-page .card-header > div { width:100%; }
   .procurement-page .procurement-table .table, .procurement-detail-table .table, .procurement-delivery-table .table, .receiving-inspection-table .table { display:block !important; width:100% !important; min-width:0 !important; }
