@@ -10,13 +10,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="assets/css/responsive.css">
-    <link rel="stylesheet" href="assets/css/mobile-layout-fix.css"">
+    <link rel="stylesheet" href="assets/css/style.css?v=20260827-2">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=20260827-2">
+    <link rel="stylesheet" href="assets/css/mobile-layout-fix.css?v=20260827-2"">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div id="app" aria-live="polite"></div>
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js?v=20260827-2" defer></script>
 </body>
 </html>
