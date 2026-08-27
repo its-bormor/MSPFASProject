@@ -18,19 +18,67 @@ jobs:
           FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
           FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_PORT: ${{ secrets.DB_PORT }}
         run: |
           set -euo pipefail
-          test -n "$FTP_HOST" && test -n "$FTP_USER" && test -n "$FTP_PASS"
-          test -n "$ENV_FILE"
+
+          [ -n "$FTP_HOST" ] || { echo "ERROR: INFINITYFREE_FTP_HOST is missing"; exit 1; }
+          [ -n "$FTP_USER" ] || { echo "ERROR: INFINITYFREE_FTP_USERNAME is missing"; exit 1; }
+          [ -n "$FTP_PASS" ] || { echo "ERROR: INFINITYFREE_FTP_PASSWORD is missing"; exit 1; }
+
+          if [ -n "$ENV_FILE" ]; then
+            echo "Database configuration: ENV_FILE secret is configured"
+          elif [ -n "$DB_HOST" ] && [ -n "$DB_NAME" ] && [ -n "$DB_USER" ] && [ -n "$DB_PASS" ]; then
+            echo "Database configuration: individual DB_* secrets are configured"
+          else
+            echo "ERROR: configure ENV_FILE, or DB_HOST/DB_NAME/DB_USER/DB_PASS"
+            exit 1
+          fi
 
       - name: Generate production environment file
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_PORT: ${{ secrets.DB_PORT }}
         run: |
           set -euo pipefail
+          mkdir -p config
           umask 077
-          printf '%s\n' "$ENV_FILE" > config/.env
+
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > config/.env
+          else
+            {
+              printf 'DB_HOST=%s\n' "$DB_HOST"
+              printf 'DB_NAME=%s\n' "$DB_NAME"
+              printf 'DB_USER=%s\n' "$DB_USER"
+              printf 'DB_PASS=%s\n' "$DB_PASS"
+              if [ -n "$DB_PORT" ]; then
+                printf 'DB_PORT=%s\n' "$DB_PORT"
+              else
+                printf 'DB_PORT=3306\n'
+              fi
+            } > config/.env
+          fi
+
           test -s config/.env
+          for key in DB_HOST DB_NAME DB_USER DB_PASS DB_PORT; do
+            grep -q "^${key}=" config/.env || { echo "ERROR: ${key} is missing from generated config/.env"; exit 1; }
+          done
+          echo "Production environment file created with all required keys"
+
+      - name: Validate PHP
+        run: |
+          set -euo pipefail
+          php -l config/database.php
+          php -l api/diagnostic.php
 
       - name: Deploy application files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -66,8 +114,9 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --ftp-create-dirs --ftp-pasv \
-            --user $FTP_USER:$FTP_PASS \
-            -T config/.env ftp://$FTP_HOST/htdocs/config/.env
+            --user "$FTP_USER:$FTP_PASS" \
+            -T config/.env "ftp://$FTP_HOST/htdocs/config/.env"
+          echo "Production environment file uploaded"
 
       - name: Force upload critical PHP files via FTP
         env:
@@ -76,5 +125,28 @@ jobs:
           FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --ftp-pasv --user "$FTP_USER:$FTP_PASS" -T config/database.php "ftp://$FTP_HOST/htdocs/config/database.php"
-          curl --fail --silent --show-error --ftp-pasv --user "$FTP_USER:$FTP_PASS" -T api/diagnostic.php "ftp://$FTP_HOST/htdocs/api/diagnostic.php"
+          curl --fail --silent --show-error --ftp-pasv \
+            --user "$FTP_USER:$FTP_PASS" \
+            -T config/database.php "ftp://$FTP_HOST/htdocs/config/database.php"
+          curl --fail --silent --show-error --ftp-pasv \
+            --user "$FTP_USER:$FTP_PASS" \
+            -T api/diagnostic.php "ftp://$FTP_HOST/htdocs/api/diagnostic.php"
+          echo "Critical PHP files uploaded"
+
+      - name: Verify remote files via FTP
+        env:
+          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
+          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp)
+          trap 'rm -f "$tmp"' EXIT
+          printf '%s\n' \
+            'cd htdocs' \
+            'size config/.env' \
+            'size config/database.php' \
+            'size api/diagnostic.php' \
+            'quit' > "$tmp"
+          ftp -inv "$FTP_HOST" < "$tmp" 2>&1 | grep -E '213 |226 |257 ' || true
+          echo "Remote verification command completed"
