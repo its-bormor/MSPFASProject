@@ -45,3 +45,16 @@
 
 /* Final isolation for member request: remove any inherited desktop/grid constraints */
 @media (max-width:900px){.app-shell{display:block!important;width:100%!important;min-width:0!important}.main{display:block!important;position:relative!important;width:100%!important;max-width:none!important;margin:0!important;min-width:0!important}.content{display:block!important;position:relative!important;width:100%!important;max-width:none!important;margin:0!important;padding:13px!important;min-width:0!important;box-sizing:border-box!important}.content>#content{display:block!important;position:relative!important;float:none!important;clear:both!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}.content>#content>.member-request-page{display:block!important;width:100%!important;max-width:none!important;min-width:0!important}.content>#content>.member-request-page>.member-catalog-card,.content>#content>.member-request-page>.member-request-summary{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;position:relative!important;float:none!important;clear:both!important;left:auto!important;right:auto!important}.content>#content>.member-request-page>.member-catalog-card{margin:0 0 18px 0!important}.content>#content>.member-request-page>.member-request-summary{margin:0!important}}
+/* Emergency structural isolation for member request */
+@media (max-width:900px){
+.app-shell:has(.member-request-page),.app-shell:has(.member-request-page) .main,.app-shell:has(.member-request-page) .content,.app-shell:has(.member-request-page) #content{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;box-sizing:border-box!important}
+.app-shell:has(.member-request-page) .main{position:relative!important;overflow:visible!important}
+.app-shell:has(.member-request-page) .content{padding:13px!important}
+.app-shell:has(.member-request-page) #content{padding:0!important}
+.app-shell:has(.member-request-page) .sidebar{display:none!important}
+.app-shell:has(.member-request-page) .member-request-page{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;float:none!important;position:relative!important;box-sizing:border-box!important}
+.app-shell:has(.member-request-page) .member-request-page>.card{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;float:none!important;clear:both!important;position:relative!important;left:auto!important;right:auto!important;margin-left:0!important;margin-right:0!important;transform:none!important;box-sizing:border-box!important}
+.app-shell:has(.member-request-page) .member-catalog-card{margin-bottom:18px!important}
+.app-shell:has(.member-request-page) .member-request-summary{margin-top:0!important}
+.app-shell:has(.member-request-page) .member-catalog-grid{display:grid!important;grid-template-columns:1fr!important;width:100%!important;min-width:0!important}
+}
