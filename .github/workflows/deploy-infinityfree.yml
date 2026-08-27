@@ -17,10 +17,39 @@ jobs:
           FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
           FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
           FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_PORT: ${{ secrets.DB_PORT }}
         run: |
+          set -euo pipefail
           test -n "$FTP_HOST"
           test -n "$FTP_USER"
           test -n "$FTP_PASS"
+          test -n "$DB_HOST"
+          test -n "$DB_NAME"
+          test -n "$DB_USER"
+          test -n "$DB_PASS"
+          test -n "$DB_PORT"
+
+      - name: Generate production environment file
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' \
+            "DB_HOST=$DB_HOST" \
+            "DB_NAME=$DB_NAME" \
+            "DB_USER=$DB_USER" \
+            "DB_PASS=$DB_PASS" \
+            "DB_PORT=$DB_PORT" \
+            > config/.env
 
       - name: Deploy application files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -38,8 +67,7 @@ jobs:
             **/.serena/**
             **/Doc/**
             **/database/**
-            **/.env
-            **/config/.env
+            **/.env.example
             **/config/.env.infinityfree.example
             **/*.sql
             **/test_api.php
