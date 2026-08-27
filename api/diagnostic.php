@@ -4,13 +4,13 @@ require_once __DIR__ . '/../config/database.php';
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    load_local_env();
+    $config = load_local_env();
 
     $keys = ['DB_HOST','DB_NAME','DB_USER','DB_PASS','DB_PORT'];
     $present = [];
     foreach ($keys as $key) {
-        $value = getenv($key);
-        $present[$key] = ($value !== false && $value !== '');
+        $value = $config[$key] ?? getenv($key);
+        $present[$key] = ($value !== false && $value !== null && $value !== '');
     }
 
     $runtime_file = __DIR__ . '/../config/runtime.php';
@@ -37,10 +37,10 @@ try {
     }
 
     $effective = [
-        'DB_HOST' => getenv('DB_HOST') ?: null,
-        'DB_NAME' => getenv('DB_NAME') ?: null,
-        'DB_USER' => getenv('DB_USER') ?: null,
-        'DB_PORT' => getenv('DB_PORT') ?: null,
+        'DB_HOST' => $config['DB_HOST'] ?? (getenv('DB_HOST') ?: null),
+        'DB_NAME' => $config['DB_NAME'] ?? (getenv('DB_NAME') ?: null),
+        'DB_USER' => $config['DB_USER'] ?? (getenv('DB_USER') ?: null),
+        'DB_PORT' => $config['DB_PORT'] ?? (getenv('DB_PORT') ?: null),
         'DB_PASS' => $present['DB_PASS'],
     ];
 
