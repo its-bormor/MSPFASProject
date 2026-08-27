@@ -2,15 +2,18 @@
 
 /* Targeted mobile layout fixes: member request + procurement */
 @media (max-width: 900px){
-  .member-request-layout{grid-template-columns:1fr!important;align-items:stretch!important}
-  .member-request-layout>.card{width:100%;min-width:0}
+  .member-request-layout{display:flex!important;flex-direction:column!important;grid-template-columns:none!important;align-items:stretch!important;width:100%!important;max-width:100%!important}
+  .member-request-layout>.card{width:100%!important;min-width:0;max-width:100%!important}
+  .member-request-layout>.member-catalog-card{order:1!important}
+  .member-request-layout>.member-request-summary{order:2!important}
   .procurement-page,.procurement-page .card{min-width:0;max-width:100%}
   .procurement-page .card-header{flex-wrap:wrap}
   .procurement-page .card-header>div{min-width:0;flex:1 1 220px}
 }
 @media (max-width: 600px){
-  .member-request-layout{display:grid!important;grid-template-columns:minmax(0,1fr)!important}
-  .member-request-layout .catalog-grid{grid-template-columns:minmax(0,1fr)!important}
+  .member-request-layout{display:flex!important;flex-direction:column!important;width:100%!important;max-width:100%!important;overflow:visible!important}
+  .member-request-layout>.card{width:100%!important;max-width:100%!important}
+  .member-request-layout .catalog-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;width:100%!important}
   .procurement-page .card-header{align-items:stretch;flex-direction:column}
   .procurement-page .card-header .btn{width:100%}
   .procurement-table .table td:last-child{grid-column:2;grid-row:1 / span 5}
