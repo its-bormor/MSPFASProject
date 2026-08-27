@@ -1,0 +1,78 @@
+name: Deploy to InfinityFree
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        env:
+          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
+          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          set -euo pipefail
+          test -n $FTP_HOST && test -n $FTP_USER && test -n $FTP_PASS
+          test -n $DB_HOST && test -n $DB_NAME && test -n $DB_USER && test -n $DB_PASS && test -n $DB_PORT
+
+      - name: Generate production environment file
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf DB_HOST=%s\nDB_NAME=%s\nDB_USER=%s\nDB_PASS=%s\nDB_PORT=%s\n $DB_HOST $DB_NAME $DB_USER $DB_PASS $DB_PORT > config/.env
+          test -s config/.env
+
+      - name: Deploy application files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.INFINITYFREE_FTP_HOST }}
+          username: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
+          password: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          server-dir: ./htdocs/
+          dangerous-clean-slate: false
+          state-name: .ftp-deploy-sync-state.json
+          exclude: |
+            **/.git*/**
+            **/.serena/**
+            **/Doc/**
+            **/database/**
+            **/.env.example
+            **/config/.env.infinityfree.example
+            **/*.sql
+            **/test_api.php
+            **/server.js
+            **/start-localhost-3000.bat
+            **/uploads/**
+            **/storage/**
+            **/*.log
+
+      - name: Force upload production env via FTP
+        env:
+          FTP_HOST: ${{ secrets.INFINITYFREE_FTP_HOST }}
+          FTP_USER: ${{ secrets.INFINITYFREE_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.INFINITYFREE_FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --ftp-create-dirs --ftp-pasv \
+            --user $FTP_USER:$FTP_PASS \
+            -T config/.env ftp://$FTP_HOST/htdocs/config/.env
