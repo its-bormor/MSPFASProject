@@ -1,5 +1,7 @@
 /* Final mobile structural layout fixes */
-@media (max-width: 900px) {
+@media (max-width: 900px) {\n  .sidebar{transform:translateX(-100%)!important}
+  .sidebar.open,.sidebar.active{transform:translateX(0)!important}
+
   /* The sidebar is off-canvas on mobile, so the main content must reclaim its width. */
   .main { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
   .content { width: 100% !important; max-width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
