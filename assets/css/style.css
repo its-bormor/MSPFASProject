@@ -158,9 +158,27 @@
     padding: 0 !important;
   }
   .sidebar, .topbar, #sidebar, .mobile-toggle, .toolbar, .report-tabs,
-  .btn, button, .modal-backdrop, #floating-notice, .floating-notice,
-  .no-print {
+  .btn, button, #floating-notice, .floating-notice,
+  .no-print, .modal-head, .modal-foot {
     display: none !important;
+  }
+  .modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  .modal-body {
+    padding: 0 !important;
   }
   .main {
     margin: 0 !important;
@@ -192,6 +210,10 @@
   }
   .doc-table th, .doc-table td {
     border-color: #000 !important;
+  }
+  .receipt {
+    border: 2px solid #000 !important;
+    box-shadow: none !important;
   }
   .page-break {
     page-break-after: always;
