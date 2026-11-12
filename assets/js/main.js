@@ -58,8 +58,8 @@ function changeQty(id,d){const current=Number(state.requestDraft?.quantities?.[i
 function cartItems(){const draft=state.requestDraft||{quantities:{}};return (state.catalog||[]).map(x=>({catalog_item_id:x.id,quantity:Number(draft.quantities?.[x.id]||0),name:x.name,unit:x.unit,price:Number(x.unit_price)})).filter(x=>x.quantity>0)}
 function updateCart(){const items=cartItems(),total=items.reduce((s,x)=>s+x.quantity*x.price,0),el=$('#cart-box');if(!el)return;el.innerHTML=items.length?`${items.map(x=>`<div class="receipt-row"><span>${esc(x.name)} × ${x.quantity}</span><strong>${money(x.quantity*x.price)}</strong></div>`).join('')}<div class="receipt-row"><strong>รวมคำขอ</strong><strong class="text-success">${money(total)} บาท</strong></div>`:'<div class="empty" style="padding:18px">ยังไม่ได้เลือกรายการ</div>'}
 async function submitRequest(e){if(e&&e.preventDefault)e.preventDefault();saveRequestDetails();const member=state.stationMember||state.user,items=cartItems(),total=items.reduce((s,x)=>s+x.quantity*x.price,0),draft=state.requestDraft;if(total<10000||total>65000){toast('ยอดคำขอต้องอยู่ระหว่าง 10,000 ถึง 65,000 บาท','error');return}if(!draft.purpose){toast('กรุณาระบุวัตถุประสงค์การนำไปใช้','error');return}const gs=(draft.guarantors||[]).map(x=>({fullname:(x.fullname||'').trim(),national_id:(x.national_id||'').trim(),phone:(x.phone||'').trim()})).filter(x=>x.fullname);const body={member_id:state.stationMember?member.id:undefined,items,purpose:draft.purpose.trim(),guarantors:gs,checklist_documents:draft.documents||{}};const r=await api('api/requests.php?action=create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(r){toast(r.message);state.requestDraft=null;state.requestStep='select';state.stationMember?nav('station'):nav('my_requests')}}
-async function myRequests(c){const member=state.stationMember||state.user;const r=await api('api/requests.php?action=list&member_id='+(state.stationMember?member.id:''));state.requests=r?.data||[];c.innerHTML=`${state.stationMember?`<div class="station-banner"><strong>${icon('person-workspace')} กำลังดำเนินการแทน ${esc(member.fullname)}</strong><button class="btn btn-secondary btn-sm" onclick="nav('station')">กลับ Station</button></div>`:''}<div class="card"><div class="card-header"><div><h2 class="card-title">คำขอและสัญญา</h2><p class="card-subtitle">ติดตามขั้นตอนตั้งแต่ยื่นคำขอจนถึงชำระคืน</p></div></div>${state.requests.length?`<div class="table-wrap"><table class="table"><thead><tr><th>วันที่</th><th>ปี</th><th>ยอดคำขอ</th><th>สถานะ</th><th>การดำเนินการ</th></tr></thead><tbody>${state.requests.map(x=>`<tr><td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td><td>${esc(x.year_be||'-')}</td><td>${money(x.amount_requested)} บาท</td><td>${badge(x.status)}</td><td><button class="btn btn-secondary btn-sm" onclick="requestDetail(${x.id})">${icon('eye')}รายละเอียด</button>${x.status==='contract_pending'?`<button class="btn btn-primary btn-sm" style="margin-left:5px" onclick="confirmContract(${x.id})">${icon('pen')}ยืนยันสัญญา</button>`:''}${x.status==='revision_requested'?`<button class="btn btn-warning btn-sm" style="margin-left:5px" onclick="reviseRequest(${x.id})">${icon('arrow-repeat')}ส่งกลับเข้าตรวจ</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:empty('ยังไม่มีคำขอ','file-earmark-text')}</div>`}
-async function requestDetail(id){const r=await api('api/requests.php?action=detail&id='+id);if(!r)return;const x=r.data;openModal('รายละเอียดคำขอ #'+x.id,`<div class="grid grid-2"><div><div class="small text-muted">สมาชิก</div><strong>${esc(x.member_name)}</strong></div><div><div class="small text-muted">ยอดคำขอ</div><strong>${money(x.amount_requested)} บาท</strong></div></div><div class="section-title">สถานะ</div>${timeline(x)}<div class="section-title">รายการ</div><div class="table-wrap"><table class="table"><thead><tr><th>รายการ</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>${(x.items||[]).map(i=>`<tr><td>${esc(i.item_name_snapshot)}</td><td>${i.quantity} ${esc(i.unit_snapshot)}</td><td>${money(i.unit_price_snapshot)}</td><td>${money(i.line_total)}</td></tr>`).join('')}</tbody></table></div><div class="section-title">ผู้ค้ำประกัน</div>${(x.guarantors||[]).length?(x.guarantors||[]).map(g=>`<div class="notice">${esc(g.guarantor_no)}. ${esc(g.fullname)} · ${esc(g.national_id||'-')} · ${esc(g.phone||'-')}</div>`).join(''):empty('ไม่มีข้อมูลผู้ค้ำประกัน','people')}${x.revision_note?`<div class="alert alert-warning" style="margin-top:15px">${esc(x.revision_note)}</div>`:''}`,'<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>')}
+async function myRequests(c){const member=state.stationMember||state.user;const r=await api('api/requests.php?action=list&member_id='+(state.stationMember?member.id:''));state.requests=r?.data||[];c.innerHTML=`${state.stationMember?`<div class="station-banner"><strong>${icon('person-workspace')} กำลังดำเนินการแทน ${esc(member.fullname)}</strong><button class="btn btn-secondary btn-sm" onclick="nav('station')">กลับ Station</button></div>`:''}<div class="card"><div class="card-header"><div><h2 class="card-title">คำขอและสัญญา</h2><p class="card-subtitle">ติดตามขั้นตอนตั้งแต่ยื่นคำขอจนถึงชำระคืน</p></div></div>${state.requests.length?`<div class="table-wrap"><table class="table"><thead><tr><th>วันที่</th><th>ปี</th><th>ยอดคำขอ</th><th>สถานะ</th><th>การดำเนินการ</th></tr></thead><tbody>${state.requests.map(x=>`<tr><td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td><td>${esc(x.year_be||'-')}</td><td>${money(x.amount_requested)} บาท</td><td>${badge(x.status)}</td><td><button class="btn btn-secondary btn-sm" onclick="requestDetail(${x.id})">${icon('eye')}รายละเอียด</button><button class="btn btn-secondary btn-sm" style="margin-left:5px" onclick="printOfficialFormModal(${x.id})">${icon('printer')}พิมพ์เอกสาร</button>${x.status==='contract_pending'?`<button class="btn btn-primary btn-sm" style="margin-left:5px" onclick="confirmContract(${x.id})">${icon('pen')}ยืนยันสัญญา</button>`:''}${x.status==='revision_requested'?`<button class="btn btn-warning btn-sm" style="margin-left:5px" onclick="reviseRequest(${x.id})">${icon('arrow-repeat')}ส่งกลับเข้าตรวจ</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:empty('ยังไม่มีคำขอ','file-earmark-text')}</div>`}
+async function requestDetail(id){const r=await api('api/requests.php?action=detail&id='+id);if(!r)return;const x=r.data;openModal('รายละเอียดคำขอ #'+x.id,`<div class="grid grid-2"><div><div class="small text-muted">สมาชิก</div><strong>${esc(x.member_name)}</strong></div><div><div class="small text-muted">ยอดคำขอ</div><strong>${money(x.amount_requested)} บาท</strong></div></div><div class="section-title">สถานะ</div>${timeline(x)}<div class="section-title">รายการ</div><div class="table-wrap"><table class="table"><thead><tr><th>รายการ</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>${(x.items||[]).map(i=>`<tr><td>${esc(i.item_name_snapshot)}</td><td>${i.quantity} ${esc(i.unit_snapshot)}</td><td>${money(i.unit_price_snapshot)}</td><td>${money(i.line_total)}</td></tr>`).join('')}</tbody></table></div><div class="section-title">ผู้ค้ำประกัน</div>${(x.guarantors||[]).length?(x.guarantors||[]).map(g=>`<div class="notice">${esc(g.guarantor_no)}. ${esc(g.fullname)} · ${esc(g.national_id||'-')} · ${esc(g.phone||'-')}</div>`).join(''):empty('ไม่มีข้อมูลผู้ค้ำประกัน','people')}${x.revision_note?`<div class="alert alert-warning" style="margin-top:15px">${esc(x.revision_note)}</div>`:''}`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button><button class="btn btn-primary" onclick="printOfficialFormModal(${id})">${icon('printer')}พิมพ์แบบฟอร์ม/สัญญา</button>`)}
 async function confirmContract(id){openModal('ยืนยันสัญญาและกำหนดแผนชำระ',`<form id="contract-form"><div class="form-group"><label class="form-label">รูปแบบการชำระ</label><select class="form-select" id="pay-mode"><option value="installment">แบ่งชำระเป็นงวด</option><option value="lump_sum">ชำระเป็นก้อน</option></select></div><div class="form-grid"><div class="form-group"><label class="form-label">จำนวนงวด</label><input type="number" min="1" max="60" class="form-control" id="pay-count" value="12"></div><div class="form-group"><label class="form-label">หักเงินค้ำประกันความเสี่ยง (ถ้ามี)</label><input type="number" min="0" class="form-control" id="risk-deduction" value="0"></div></div><div class="form-group"><label class="form-label">วันครบกำหนดงวดแรก</label><input type="date" class="form-control" id="first-due" value="${new Date().toISOString().slice(0,10)}"></div><div class="notice">ระบบจะคำนวณดอกเบี้ยตามอัตรา 6% ต่อปีตามข้อมูลโครงการ และสร้างตารางงวดสำหรับติดตามการชำระ</div><button class="btn btn-primary btn-block">${icon('check2-circle')}ยืนยันสัญญา</button></form>`);$('#contract-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/requests.php?action=confirm_contract'+(state.stationMember?'&member_id='+state.stationMember.id:''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,payment_mode:$('#pay-mode').value,installment_count:$('#pay-count').value,risk_deduction:$('#risk-deduction').value,first_due_date:$('#first-due').value})});if(r){closeModal();nav('my_requests')}})}
 async function reviseRequest(id){const r=await api('api/requests.php?action=revise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,member_id:state.stationMember?.id})});if(r){toast(r.message);nav('my_requests')}}
 async function requests(c){const r=await api('api/requests.php?action=list');state.requests=r?.data||[];c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">คำขอที่อยู่ระหว่างดำเนินการ</h2><p class="card-subtitle">คณะกรรมการตรวจสอบก่อนส่งต่อให้ประธาน</p></div></div>${state.requests.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>ยอด</th><th>สถานะ</th><th>วันที่</th><th></th></tr></thead><tbody>${state.requests.map(x=>`<tr><td><strong>${esc(x.fullname)}</strong><div class="small text-muted">${esc(x.username||'')}</div></td><td>${money(x.amount_requested)}</td><td>${badge(x.status)}</td><td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td><td><button class="btn btn-secondary btn-sm" onclick="committeeRequest(${x.id})">${icon('eye')}${['submitted','committee_review'].includes(x.status)?'ตรวจสอบ':'ดูรายละเอียด'}</button></td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีคำขอที่ต้องดำเนินการ','clipboard')}</div>`}
@@ -80,14 +80,1040 @@ async function showReceipt(id){const r=await api('api/payments.php?action=receip
 async function payments(c){const r=await api('api/payments.php?action=list');state.payments=r?.data||[];c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">รายการชำระที่ต้องตรวจสอบ</h2><p class="card-subtitle">เงินสดถูกบันทึกเป็นหลักฐานโดยกรรมการ ส่วนการโอนต้องตรวจหลักฐาน</p></div></div>${state.payments.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>วันที่</th><th>จำนวน</th><th>ช่องทาง</th><th>สถานะ</th><th></th></tr></thead><tbody>${state.payments.map(x=>`<tr><td>${esc(x.fullname)}</td><td>${esc(x.payment_date)}</td><td>${money(x.amount)}</td><td>${x.payment_channel==='cash'?'เงินสด':'โอนเงิน'}</td><td>${x.status==='pending'?'<span class="badge badge-warning">รอตรวจ</span>':x.status==='verified'?'<span class="badge badge-success">ยืนยันแล้ว</span>':'<span class="badge badge-danger">ไม่ผ่าน</span>'}</td><td>${x.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="verifyPayment(${x.id})">${icon('check2')}ตรวจสอบ</button>`:x.status==='verified'&&x.receipt_number?`<button class="btn btn-secondary btn-sm" onclick="showReceipt(${x.id})">${icon('printer')}หลักฐาน</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีรายการชำระรอตรวจ','receipt')}</div>`}
 async function verifyPayment(id){openModal('ตรวจสอบการชำระเงิน',`<div class="form-group"><label class="form-label">หมายเหตุ</label><textarea id="verify-note" class="form-control"></textarea></div>`,`<button class="btn btn-danger" onclick="doVerify(${id},'invalid')">${icon('x-circle')}ไม่ผ่าน</button><button class="btn btn-primary" onclick="doVerify(${id},'verified')">${icon('check2-circle')}ยืนยันการชำระ</button>`)}
 async function doVerify(id,status){const r=await api('api/payments.php?action=verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status,note:$('#verify-note')?.value||''})});if(r){closeModal();nav('payments')}}
-async function members(c){const r=await api('api/members.php?action=list');state.members=r?.data||[];c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">ข้อมูลสมาชิกกองทุน</h2><p class="card-subtitle">ค้นหา แก้ไข และจัดการบัญชีสมาชิก</p></div><button class="btn btn-primary" onclick="showMemberForm()">${icon('person-plus')}เพิ่มสมาชิก</button></div><div class="toolbar" style="margin-bottom:15px"><input id="member-search" class="form-control" placeholder="ค้นหาชื่อ / username / เลขบัตร / โทรศัพท์" oninput="filterMemberTable()"></div><div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>Username</th><th>โทรศัพท์</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead><tbody id="member-tbody">${memberRows(state.members)}</tbody></table></div></div>`}
-function memberRows(rows){return rows.filter(x=>x.role==='member').map(x=>`<tr><td><strong>${esc(x.fullname)}</strong></td><td>${esc(x.username)}</td><td>${esc(x.phone)}</td><td>${x.risk_status==='normal'?'<span class="badge badge-success">ปกติ</span>':`<span class="badge badge-warning">${esc(x.risk_status)}</span>`}</td><td>${x.is_active?'<span class="badge badge-success">ใช้งาน</span>':'<span class="badge badge-neutral">ปิดใช้งาน</span>'}</td><td><button class="btn btn-secondary btn-sm" onclick="showMemberForm(${x.id})">${icon('pencil')}แก้ไข</button></td></tr>`).join('')||`<tr><td colspan="6">${empty('ไม่พบสมาชิก')}</td></tr>`}
+async function members(c){
+  const r = await api('api/members.php?action=list');
+  state.members = r?.data || [];
+  c.innerHTML = `<div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">ข้อมูลสมาชิกกองทุน</h2>
+        <p class="card-subtitle">ค้นหา แก้ไข นำเข้า และจัดการบัญชีสมาชิก</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-secondary" onclick="showImportModal()">${icon('file-earmark-spreadsheet')}นำเข้าสมาชิก (Excel / CSV)</button>
+        <button class="btn btn-primary" onclick="showMemberForm()">${icon('person-plus')}เพิ่มสมาชิก</button>
+      </div>
+    </div>
+    <div class="toolbar" style="margin-bottom:15px">
+      <input id="member-search" class="form-control" style="max-width:400px" placeholder="ค้นหาชื่อ / username / เลขบัตร / โทรศัพท์" oninput="filterMemberTable()">
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>สมาชิก</th><th>Username</th><th>โทรศัพท์</th><th>เลขบัตร</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+        <tbody id="member-tbody">${memberRows(state.members)}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function showImportModal(){
+  openModal('นำเข้าข้อมูลสมาชิกจากไฟล์ (Excel / CSV)', `
+    <div class="notice" style="margin-bottom:16px">
+      รองรับไฟล์ <strong>.xlsx</strong> (Excel) หรือ <strong>.csv</strong> โดยคอลัมน์สำคัญคือ <strong>รหัสสมาชิก</strong> และ <strong>ชื่อ-นามสกุล</strong>
+    </div>
+    <div style="margin-bottom:16px">
+      <a href="api/members.php?action=import_template" class="btn btn-secondary btn-sm" download="member_import_template.csv">
+        ${icon('download')} ดาวน์โหลดแม่แบบไฟล์ CSV ตัวอย่าง
+      </a>
+    </div>
+    <form id="import-member-form" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label">เลือกไฟล์ (.xlsx หรือ .csv)</label>
+        <input type="file" id="import-file" class="form-control" accept=".xlsx,.csv" required>
+        <div class="form-help">กรณีไม่มีรหัสผ่านในไฟล์ ระบบจะตั้งรหัสผ่านเริ่มต้นเป็น <strong>123456</strong> อัตโนมัติ</div>
+      </div>
+      <div id="import-result-box" style="display:none;margin-top:14px"></div>
+      <button class="btn btn-primary btn-block" type="submit" id="btn-do-import">${icon('upload')} เริ่มนำเข้าข้อมูล</button>
+    </form>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>`);
+
+  $('#import-member-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const file = $('#import-file').files[0];
+    if (!file) return toast('กรุณาเลือกไฟล์', 'error');
+
+    const btn = $('#btn-do-import');
+    btn.disabled = true;
+    btn.innerHTML = `${icon('arrow-repeat')} กำลังนำเข้าข้อมูล...`;
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    const r = await api('api/members.php?action=import', { method: 'POST', body: fd });
+    btn.disabled = false;
+    btn.innerHTML = `${icon('upload')} เริ่มนำเข้าข้อมูล`;
+
+    if (r) {
+      toast(r.message, 'success');
+      const box = $('#import-result-box');
+      if (box && r.summary) {
+        box.style.display = 'block';
+        box.innerHTML = `<div class="alert alert-success">
+          <strong>ผลการนำเข้า:</strong> ทั้งหมด ${r.summary.total} รายการ | เพิ่มใหม่ ${r.summary.imported} | ปรับปรุง ${r.summary.updated} | ข้าม ${r.summary.skipped}
+          ${r.summary.errors?.length ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${r.summary.errors.join('<br>')}</div>` : ''}
+        </div>`;
+      }
+      setTimeout(() => {
+        closeModal();
+        nav('members');
+      }, 1500);
+    }
+  });
+}
+function memberRows(rows){return rows.filter(x=>x.role==='member').map(x=>`<tr><td><strong>${esc(x.fullname)}</strong></td><td>${esc(x.username)}</td><td>${esc(x.phone||'-')}</td><td>${esc(x.national_id||'-')}</td><td>${x.risk_status==='normal'?'<span class="badge badge-success">ปกติ</span>':`<span class="badge badge-warning">${esc(x.risk_status)}</span>`}</td><td>${x.is_active?'<span class="badge badge-success">ใช้งาน</span>':'<span class="badge badge-neutral">ปิดใช้งาน</span>'}</td><td><button class="btn btn-secondary btn-sm" onclick="showMemberForm(${x.id})">${icon('pencil')}แก้ไข</button></td></tr>`).join('')||`<tr><td colspan="7">${empty('ไม่พบสมาชิก')}</td></tr>`}
 function filterMemberTable(){const q=$('#member-search').value.toLowerCase();$('#member-tbody').innerHTML=memberRows(state.members.filter(x=>JSON.stringify(x).toLowerCase().includes(q)))}
 function showMemberForm(id){const x=state.members.find(m=>m.id==id);openModal(id?'แก้ไขสมาชิก':'เพิ่มสมาชิก',`<form id="member-form"><input type="hidden" id="m-id" value="${id||''}"><div class="form-grid"><div class="form-group"><label class="form-label">ชื่อผู้ใช้</label><input class="form-control" id="m-user" value="${esc(x?.username)}" required><div class="form-help">ควรใช้รหัสสมาชิกหรือชื่อที่จำง่าย ไม่ใช้เลขบัตรประชาชนเป็นรหัสผ่าน</div></div><div class="form-group"><label class="form-label">รหัสผ่าน ${id?'(เว้นว่างถ้าไม่เปลี่ยน)':''}</label><input type="password" class="form-control" id="m-pass" ${id?'':'required'}></div></div><div class="form-grid"><div class="form-group"><label class="form-label">ชื่อ-นามสกุล</label><input class="form-control" id="m-name" value="${esc(x?.fullname)}" required></div><div class="form-group"><label class="form-label">เบอร์โทรศัพท์</label><input class="form-control" id="m-phone" value="${esc(x?.phone)}"></div></div><div class="form-grid"><div class="form-group"><label class="form-label">เลขบัตรประชาชน</label><input class="form-control" id="m-nid" maxlength="13" value="${esc(x?.national_id)}"></div><div class="form-group"><label class="form-label">สถานะความเสี่ยง</label><select class="form-select" id="m-risk"><option value="normal" ${x?.risk_status==='normal'?'selected':''}>ปกติ</option><option value="suspended" ${x?.risk_status==='suspended'?'selected':''}>พักชำระหนี้</option><option value="deceased" ${x?.risk_status==='deceased'?'selected':''}>เสียชีวิต</option></select></div></div><div class="form-group"><label class="form-label">ที่อยู่</label><textarea class="form-control" id="m-address">${esc(x?.address)}</textarea></div><button class="btn btn-primary btn-block">${icon('save')}บันทึกข้อมูล</button></form>`);$('#member-form').addEventListener('submit',saveMember)}
 async function saveMember(e){e.preventDefault();const id=$('#m-id').value;const d={username:$('#m-user').value.trim(),fullname:$('#m-name').value.trim(),phone:$('#m-phone').value.trim(),national_id:$('#m-nid').value.trim(),risk_status:$('#m-risk').value,address:$('#m-address').value};if($('#m-pass').value)d.password=$('#m-pass').value;const r=await api('api/members.php?action='+(id?'update':'create'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(id?{...d,id}:d)});if(r){closeModal();nav('members')}}
 async function ledger(c){const year=new Date().getFullYear()+543;const r=await api('api/payments.php?action=ledger&year='+year);c.innerHTML=`<div class="grid grid-3"><div class="stat-card"><div class="stat-label">รายรับ</div><div class="stat-value text-success">${money(r?.total_income)}</div></div><div class="stat-card"><div class="stat-label">รายจ่าย</div><div class="stat-value text-danger">${money(r?.total_expense)}</div></div><div class="stat-card"><div class="stat-label">คงเหลือ</div><div class="stat-value">${money(r?.balance)}</div></div></div><div class="card" style="margin-top:18px"><div class="card-header"><div><h2 class="card-title">บัญชีรายรับ–รายจ่าย ปี ${year}</h2></div>${state.user.role==='committee'?`<button class="btn btn-primary" onclick="showLedgerForm()">${icon('plus-lg')}บันทึกรายการ</button>`:''}</div>${r?.data?.length?`<div class="table-wrap"><table class="table"><thead><tr><th>วันที่</th><th>ประเภท</th><th>รายละเอียด</th><th>จำนวนเงิน</th><th>อ้างอิง</th></tr></thead><tbody>${r.data.map(x=>`<tr><td>${esc(x.transaction_date)}</td><td>${x.type==='income'?'<span class="badge badge-success">รายรับ</span>':'<span class="badge badge-danger">รายจ่าย</span>'}</td><td>${esc(x.description)}</td><td>${money(x.amount)}</td><td>${esc(x.reference||'-')}</td></tr>`).join('')}</tbody></table></div>`:empty('ยังไม่มีรายการบัญชี','journal-text')}</div>`}
 function showLedgerForm(){openModal('บันทึกรายการบัญชี',`<form id="ledger-form"><div class="form-grid"><div class="form-group"><label class="form-label">ประเภท</label><select class="form-select" id="l-type"><option value="income">รายรับ</option><option value="expense">รายจ่าย</option></select></div><div class="form-group"><label class="form-label">จำนวนเงิน</label><input class="form-control" id="l-amount" type="number" min="0.01" step="0.01" required></div></div><div class="form-group"><label class="form-label">วันที่</label><input class="form-control" id="l-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-group"><label class="form-label">รายละเอียด</label><input class="form-control" id="l-desc" required></div><div class="form-group"><label class="form-label">เลขที่อ้างอิง</label><input class="form-control" id="l-ref"></div><button class="btn btn-primary btn-block">${icon('save')}บันทึก</button></form>`);$('#ledger-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/payments.php?action=add_transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:$('#l-type').value,amount:$('#l-amount').value,transaction_date:$('#l-date').value,description:$('#l-desc').value,reference:$('#l-ref').value})});if(r){closeModal();nav('ledger')}})}
-async function reports(c){const year=new Date().getFullYear()+543;const r=await api('api/reports.php?action=annual&year='+year);if(!r){c.innerHTML=empty('ไม่สามารถสร้างรายงานได้');return}const cats=(r.by_category||[]).map(x=>({label:x.category==='fertilizer'?'ปุ๋ย':x.category==='medicine'?'ยา':x.category==='seed'?'เมล็ดพันธุ์':'อื่น ๆ',amount:Number(x.amount)||0}));c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">รายงานสรุปสิ้นปีงบประมาณ ${year}</h2><p class="card-subtitle">ใช้ตรวจสอบภาพรวมคำขอ การชำระ และการเงินก่อนปิดปีงบประมาณ</p></div><button class="btn btn-secondary" onclick="window.print()">${icon('printer')}พิมพ์รายงาน</button></div><div class="grid grid-4"><div class="stat-card"><div class="stat-label">คำขอทั้งหมด</div><div class="stat-value">${r.summary.total||0}</div></div><div class="stat-card"><div class="stat-label">ยอดคำขอรวม</div><div class="stat-value">${money(r.summary.requested_amount)}</div></div><div class="stat-card"><div class="stat-label">ยอดตามแผนชำระ</div><div class="stat-value">${money(r.payable)}</div></div><div class="stat-card"><div class="stat-label">รับชำระแล้ว</div><div class="stat-value text-success">${money(r.paid)}</div></div></div><div class="grid grid-2" style="margin-top:18px"><div class="card"><h3 class="card-title">สรุปตามประเภท</h3><div style="margin-top:12px">${cats.map(x=>`<div class="receipt-row"><span>${x.label}</span><strong>${money(x.amount)}</strong></div>`).join('')||empty('ไม่มีข้อมูล')}</div></div><div class="card"><h3 class="card-title">กราฟมูลค่าคำขอตามประเภท</h3><div style="height:280px;margin-top:12px"><canvas id="annual-category-chart" aria-label="กราฟมูลค่าคำขอตามประเภท" role="img"></canvas></div></div></div><div class="card" style="margin-top:18px"><h3 class="card-title">สถานะการชำระ</h3><div class="receipt-row"><span>ยอดตามแผน</span><strong>${money(r.payable)} บาท</strong></div><div class="receipt-row"><span>ชำระแล้ว</span><strong class="text-success">${money(r.paid)} บาท</strong></div><div class="receipt-row"><span>คงเหลือ</span><strong>${money(r.remaining)} บาท</strong></div></div><div class="notice" style="margin-top:18px">รายงานนี้เป็นส่วนหนึ่งของขั้นตอนปิดสิ้นสุดปีงบประมาณ และข้อมูลหนี้ที่ยังคงค้างจะไม่ถูกลบ สามารถติดตามต่อในรอบถัดไปได้</div></div>`;const canvas=document.getElementById('annual-category-chart');if(canvas&&window.Chart&&cats.length){new Chart(canvas,{type:'bar',data:{labels:cats.map(x=>x.label),datasets:[{label:'มูลค่า (บาท)',data:cats.map(x=>x.amount),borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>Number(v).toLocaleString('th-TH')}}}}})}}
+async function reports(c){
+  state.reportTab = state.reportTab || 'annual';
+  state.reportYear = state.reportYear || (new Date().getFullYear() + 543);
+  state.memberSubTab = state.memberSubTab || 'roster';
+  state.financialSubTab = state.financialSubTab || 'overview';
+
+  c.innerHTML = `
+    <div class="card no-print">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">ศูนย์รายงานและเอกสารแบบฟอร์ม</h2>
+          <p class="card-subtitle">รายงานสมาชิก รายงานการเงิน สรุปประจำปี และแบบฟอร์มเอกสารสำหรับพิมพ์</p>
+        </div>
+      </div>
+      <div class="report-tabs">
+        <button class="report-tab-btn ${state.reportTab === 'annual' ? 'active' : ''}" onclick="switchReportTab('annual')">
+          ${icon('calendar-check')} สรุปประจำปีงบประมาณ
+        </button>
+        <button class="report-tab-btn ${state.reportTab === 'members' ? 'active' : ''}" onclick="switchReportTab('members')">
+          ${icon('people')} รายงานสมาชิก (รายบุคคล/ประจำปี)
+        </button>
+        <button class="report-tab-btn ${state.reportTab === 'financial' ? 'active' : ''}" onclick="switchReportTab('financial')">
+          ${icon('cash-stack')} รายงานการเงิน (ภาพรวม/รายบุคคล)
+        </button>
+        <button class="report-tab-btn ${state.reportTab === 'forms' ? 'active' : ''}" onclick="switchReportTab('forms')">
+          ${icon('file-earmark-text')} แบบฟอร์มพิมพ์เอกสาร/สัญญา
+        </button>
+      </div>
+      <div id="report-tab-body"></div>
+    </div>
+    <div id="report-print-area"></div>
+  `;
+
+  renderActiveReportTab();
+}
+
+function switchReportTab(tab){
+  state.reportTab = tab;
+  document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(
+    tab === 'annual' ? 'สรุปประจำปี' : tab === 'members' ? 'รายงานสมาชิก' : tab === 'financial' ? 'รายงานการเงิน' : 'แบบฟอร์มพิมพ์'
+  )));
+  renderActiveReportTab();
+}
+
+async function renderActiveReportTab(){
+  const body = $('#report-tab-body');
+  if (!body) return;
+
+  if (state.reportTab === 'annual') {
+    return renderAnnualReport(body);
+  } else if (state.reportTab === 'members') {
+    return renderMembersReport(body);
+  } else if (state.reportTab === 'financial') {
+    return renderFinancialReport(body);
+  } else if (state.reportTab === 'forms') {
+    return renderFormsReport(body);
+  }
+}
+
+// -------------------------------------------------------------
+// 1. Annual Summary Report
+// -------------------------------------------------------------
+async function renderAnnualReport(container){
+  container.innerHTML = `<div class="empty">${icon('arrow-repeat')} กำลังโหลดข้อมูลรายงาน...</div>`;
+  const year = state.reportYear;
+  const r = await api(`api/reports.php?action=annual&year=${year}`);
+  if (!r) {
+    container.innerHTML = empty('ไม่สามารถโหลดข้อมูลรายงานประจำปีได้');
+    return;
+  }
+
+  const cats = (r.by_category || []).map(x => ({
+    label: x.category === 'fertilizer' ? 'ปุ๋ย' : x.category === 'medicine' ? 'ยา' : x.category === 'seed' ? 'เมล็ดพันธุ์' : 'อื่น ๆ',
+    amount: Number(x.amount) || 0,
+    qty: Number(x.quantity) || 0
+  }));
+
+  container.innerHTML = `
+    <div class="toolbar" style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <label class="form-label" style="margin:0">ปีงบประมาณ:</label>
+        <select class="form-select" id="rep-annual-year" style="width:130px" onchange="state.reportYear=Number(this.value);renderActiveReportTab()">
+          ${[year, year-1, year-2, year+1].map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="window.print()">${icon('printer')} พิมพ์รายงานสรุปประจำปี</button>
+    </div>
+
+    <div class="grid grid-4">
+      <div class="stat-card">
+        <div class="stat-icon">${icon('people')}</div>
+        <div class="stat-label">สมาชิกทั้งหมด / ผู้กู้</div>
+        <div class="stat-value">${r.member_count} / ${r.borrower_count}</div>
+        <div class="stat-note">รายที่มีคำขอในปีนี้</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${icon('file-earmark-text')}</div>
+        <div class="stat-label">ยอดคำขอรวม</div>
+        <div class="stat-value">${money(r.summary.requested_amount)}</div>
+        <div class="stat-note">คำขออนุมัติ ${r.summary.approved || 0} รายการ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${icon('cash-stack')}</div>
+        <div class="stat-label">รับชำระคืนแล้ว</div>
+        <div class="stat-value text-success">${money(r.paid)}</div>
+        <div class="stat-note">ชำระแล้ว ${r.repayment_rate}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${icon('wallet2')}</div>
+        <div class="stat-label">หนี้คงค้างรวม</div>
+        <div class="stat-value text-danger">${money(r.remaining)}</div>
+        <div class="stat-note">ตามแผน ${money(r.payable)} บาท</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:18px">
+      <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+        <h3 class="card-title">สรุปมูลค่าปัจจัยการผลิตตามประเภท</h3>
+        <div style="margin-top:14px">
+          ${cats.length ? cats.map(x => `
+            <div class="receipt-row">
+              <span><strong>${esc(x.label)}</strong> (ปริมาณ ${money(x.qty)})</span>
+              <strong>${money(x.amount)} บาท</strong>
+            </div>
+          `).join('') : empty('ไม่มีข้อมูลรายการ')}
+        </div>
+      </div>
+      <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+        <h3 class="card-title">กราฟสัดส่วนมูลค่าปัจจัยการผลิต</h3>
+        <div style="height:260px;margin-top:12px">
+          <canvas id="annual-category-chart" aria-label="กราฟมูลค่าคำขอตามประเภท" role="img"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin-top:18px">
+      <h3 class="card-title">สถานะบัญชีกองทุนประจำปี ${year} (Ledger)</h3>
+      <div class="grid grid-2" style="margin-top:12px">
+        ${(r.ledger || []).map(l => `
+          <div class="receipt-row">
+            <span>${l.type === 'income' ? '<span class="badge badge-success">รายรับรวม</span>' : '<span class="badge badge-danger">รายจ่ายรวม</span>'}</span>
+            <strong>${money(l.amount)} บาท</strong>
+          </div>
+        `).join('') || '<div class="text-muted">ยังไม่มีรายการบัญชีในปีนี้</div>'}
+      </div>
+    </div>
+  `;
+
+  const canvas = document.getElementById('annual-category-chart');
+  if (canvas && window.Chart && cats.length) {
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: cats.map(x => x.label),
+        datasets: [{
+          data: cats.map(x => x.amount),
+          backgroundColor: ['#176b3a', '#c9982e', '#2864a5', '#667085']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+}
+
+// -------------------------------------------------------------
+// 2. Members Report (Annual Roster + Individual History)
+// -------------------------------------------------------------
+async function renderMembersReport(container){
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm ${state.memberSubTab === 'roster' ? 'btn-primary' : 'btn-secondary'}" onclick="state.memberSubTab='roster';renderMembersReport($('#report-tab-body'))">
+          ${icon('list-ul')} บัญชีสมาชิกประจำปี
+        </button>
+        <button class="btn btn-sm ${state.memberSubTab === 'individual' ? 'btn-primary' : 'btn-secondary'}" onclick="state.memberSubTab='individual';renderMembersReport($('#report-tab-body'))">
+          ${icon('person-vcard')} ประวัติและรายงานสมาชิกรายบุคคล
+        </button>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">${icon('printer')} พิมพ์รายงานนี้</button>
+    </div>
+    <div id="member-subtab-content"></div>
+  `;
+
+  const subContent = $('#member-subtab-content');
+  if (state.memberSubTab === 'roster') {
+    renderMemberRoster(subContent);
+  } else {
+    renderMemberIndividual(subContent);
+  }
+}
+
+async function renderMemberRoster(container){
+  container.innerHTML = `<div class="empty">${icon('arrow-repeat')} กำลังโหลดบัญชีสมาชิก...</div>`;
+  const year = state.reportYear;
+  const r = await api(`api/reports.php?action=member_annual_list&year=${year}`);
+  const list = r?.data || [];
+
+  container.innerHTML = `
+    <div class="toolbar" style="margin-bottom:14px">
+      <input id="roster-search" class="form-control" style="max-width:320px" placeholder="ค้นหาชื่อ / รหัส / เลขบัตร..." oninput="filterRosterTable()">
+      <div class="small text-muted">สมาชิกทั้งหมด ${list.length} รายการ</div>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="roster-table">
+        <thead>
+          <tr>
+            <th>รหัส</th>
+            <th>ชื่อ-นามสกุล</th>
+            <th>เลขบัตรประชาชน</th>
+            <th>โทรศัพท์</th>
+            <th>ยอดกู้ปี ${year}</th>
+            <th>ชำระแล้ว</th>
+            <th>คงเหลือ</th>
+            <th>สถานะความเสี่ยง</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="roster-tbody">
+          ${renderRosterRows(list)}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  window.rosterData = list;
+}
+
+function renderRosterRows(rows){
+  if (!rows.length) return `<tr><td colspan="9">${empty('ไม่พบข้อมูลสมาชิก')}</td></tr>`;
+  return rows.map(x => `
+    <tr>
+      <td><strong>${esc(x.username)}</strong></td>
+      <td>${esc(x.fullname)}</td>
+      <td>${esc(x.national_id || '-')}</td>
+      <td>${esc(x.phone || '-')}</td>
+      <td>${Number(x.amount_requested) > 0 ? money(x.amount_requested) + ' บาท' : '<span class="text-muted">-</span>'}</td>
+      <td class="text-success">${money(x.total_paid)}</td>
+      <td class="${Number(x.remaining_debt) > 0 ? 'text-danger fw-bold' : 'text-muted'}">${money(x.remaining_debt)}</td>
+      <td>${x.risk_status === 'normal' ? '<span class="badge badge-success">ปกติ</span>' : `<span class="badge badge-warning">${esc(x.risk_status)}</span>`}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="viewIndividualReport(${x.id})">
+          ${icon('eye')} ดูรายบุคคล
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterRosterTable(){
+  const q = ($('#roster-search')?.value || '').toLowerCase().trim();
+  const filtered = (window.rosterData || []).filter(x =>
+    (x.fullname || '').toLowerCase().includes(q) ||
+    (x.username || '').toLowerCase().includes(q) ||
+    (x.national_id || '').includes(q) ||
+    (x.phone || '').includes(q)
+  );
+  $('#roster-tbody').innerHTML = renderRosterRows(filtered);
+}
+
+function viewIndividualReport(memberId){
+  state.memberSubTab = 'individual';
+  state.selectedReportMemberId = memberId;
+  renderMembersReport($('#report-tab-body'));
+}
+
+async function renderMemberIndividual(container){
+  const mListRes = await api('api/members.php?action=list');
+  const members = (mListRes?.data || []).filter(x => x.role === 'member');
+  const selectedId = state.selectedReportMemberId || members[0]?.id;
+
+  container.innerHTML = `
+    <div class="toolbar" style="margin-bottom:16px">
+      <label class="form-label" style="margin:0">เลือกสมาชิก:</label>
+      <select class="form-select" style="max-width:350px" id="sel-report-member" onchange="state.selectedReportMemberId=Number(this.value);renderMemberIndividual($('#member-subtab-content'))">
+        ${members.map(m => `<option value="${m.id}" ${m.id == selectedId ? 'selected' : ''}>${esc(m.fullname)} (${esc(m.username)})</option>`).join('')}
+      </select>
+    </div>
+    <div id="member-individual-detail"></div>
+  `;
+
+  if (!selectedId) {
+    $('#member-individual-detail').innerHTML = empty('ยังไม่มีข้อมูลสมาชิก');
+    return;
+  }
+
+  const detailRes = await api(`api/reports.php?action=member_detail&member_id=${selectedId}`);
+  if (!detailRes) {
+    $('#member-individual-detail').innerHTML = empty('ไม่สามารถโหลดข้อมูลสมาชิกได้');
+    return;
+  }
+
+  const m = detailRes.member;
+  const s = detailRes.summary;
+  const reqs = detailRes.requests || [];
+  const gOthers = detailRes.guaranteed_for_others || [];
+
+  $('#member-individual-detail').innerHTML = `
+    <div class="grid grid-3">
+      <div class="stat-card">
+        <div class="stat-label">ยอดกู้ยืมรวมทุกปี</div>
+        <div class="stat-value">${money(s.total_requested)}</div>
+        <div class="stat-note">คำขอทั้งหมด ${reqs.length} ครั้ง</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ชำระคืนแล้วรวม</div>
+        <div class="stat-value text-success">${money(s.total_paid)}</div>
+        <div class="stat-note">บาท</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">หนี้คงเหลือปัจจุบัน</div>
+        <div class="stat-value text-danger">${money(s.remaining_debt)}</div>
+        <div class="stat-note">บาท</div>
+      </div>
+    </div>
+
+    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin-top:16px">
+      <div class="card-header">
+        <h3 class="card-title">ข้อมูลส่วนตัวและสถานะ</h3>
+        ${m.risk_status === 'normal' ? '<span class="badge badge-success">สถานะปกติ</span>' : `<span class="badge badge-warning">${esc(m.risk_status)}</span>`}
+      </div>
+      <div class="form-grid">
+        <div><span class="text-muted small">ชื่อ-นามสกุล:</span> <strong>${esc(m.fullname)}</strong></div>
+        <div><span class="text-muted small">รหัสสมาชิก:</span> <strong>${esc(m.username)}</strong></div>
+        <div><span class="text-muted small">เลขประจำตัวประชาชน:</span> <strong>${esc(m.national_id || '-')}</strong></div>
+        <div><span class="text-muted small">เบอร์โทรศัพท์:</span> <strong>${esc(m.phone || '-')}</strong></div>
+        <div><span class="text-muted small">สถานภาพ:</span> <strong>${esc(m.marital_status)}</strong> ${m.spouse_name ? `(คู่สมรส: ${esc(m.spouse_name)})` : ''}</div>
+        <div><span class="text-muted small">ที่อยู่:</span> <strong>${esc(m.address || '-')}</strong></div>
+      </div>
+    </div>
+
+    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin-top:16px">
+      <h3 class="card-title">ประวัติคำขอและสัญญาของสมาชิก</h3>
+      ${reqs.length ? `
+        <div class="table-wrap" style="margin-top:12px">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ปีงบประมาณ</th>
+                <th>ยอดคำขอ</th>
+                <th>ยอดตามแผน</th>
+                <th>ชำระแล้ว</th>
+                <th>คงเหลือ</th>
+                <th>สถานะสัญญา</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reqs.map(r => `
+                <tr>
+                  <td><strong>ปี ${esc(r.year_be || '-')}</strong></td>
+                  <td>${money(r.amount_requested)} บาท</td>
+                  <td>${money(r.total_payable)} บาท</td>
+                  <td class="text-success">${money(r.total_paid)}</td>
+                  <td class="${Number(r.remaining) > 0 ? 'text-danger fw-bold' : 'text-muted'}">${money(r.remaining)}</td>
+                  <td>${badge(r.status)}</td>
+                  <td>
+                    <button class="btn btn-secondary btn-sm" onclick="printOfficialFormModal(${r.id})">
+                      ${icon('printer')} พิมพ์สัญญา/คำขอ
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : empty('ไม่มีประวัติคำขอ')}
+    </div>
+
+    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin-top:16px">
+      <h3 class="card-title">ภาระการค้ำประกันให้สมาชิกท่านอื่น</h3>
+      ${gOthers.length ? `
+        <div class="table-wrap" style="margin-top:12px">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>สมาชิกที่ไปค้ำให้</th>
+                <th>รหัสผู้กู้</th>
+                <th>ปีงบประมาณ</th>
+                <th>วงเงินกู้</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${gOthers.map(g => `
+                <tr>
+                  <td><strong>${esc(g.borrower_name)}</strong></td>
+                  <td>${esc(g.borrower_code)}</td>
+                  <td>ปี ${esc(g.year_be || '-')}</td>
+                  <td>${money(g.amount_requested)} บาท</td>
+                  <td>${badge(g.status)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="text-muted" style="padding:10px 0">สมาชิกท่านนี้ไม่ได้เป็นผู้ค้ำประกันให้สมาชิกรายอื่น</div>'}
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// 3. Financial Report (Project Financials + Individual Statement)
+// -------------------------------------------------------------
+async function renderFinancialReport(container){
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm ${state.financialSubTab === 'overview' ? 'btn-primary' : 'btn-secondary'}" onclick="state.financialSubTab='overview';renderFinancialReport($('#report-tab-body'))">
+          ${icon('pie-chart')} งบการเงินภาพรวมโครงการ
+        </button>
+        <button class="btn btn-sm ${state.financialSubTab === 'statement' ? 'btn-primary' : 'btn-secondary'}" onclick="state.financialSubTab='statement';renderFinancialReport($('#report-tab-body'))">
+          ${icon('receipt-cutoff')} Statement การเงินสมาชิกรายบุคคล
+        </button>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">${icon('printer')} พิมพ์รายงานการเงิน</button>
+    </div>
+    <div id="financial-subtab-content"></div>
+  `;
+
+  const subContent = $('#financial-subtab-content');
+  if (state.financialSubTab === 'overview') {
+    renderFinancialOverview(subContent);
+  } else {
+    renderFinancialStatement(subContent);
+  }
+}
+
+async function renderFinancialOverview(container){
+  container.innerHTML = `<div class="empty">${icon('arrow-repeat')} กำลังโหลดข้อมูลการเงินโครงการ...</div>`;
+  const year = state.reportYear;
+  const r = await api(`api/reports.php?action=financial_summary&year=${year}`);
+  if (!r) {
+    container.innerHTML = empty('ไม่สามารถโหลดข้อมูลงบการเงินได้');
+    return;
+  }
+
+  const l = r.loans;
+  const ledger = r.ledger;
+
+  container.innerHTML = `
+    <div class="grid grid-4">
+      <div class="stat-card">
+        <div class="stat-icon">${icon('cash')}</div>
+        <div class="stat-label">เงินต้นปล่อยกู้รวม</div>
+        <div class="stat-value">${money(l.total_principal)}</div>
+        <div class="stat-note">สัญญาอนุมัติ ${l.total_contracts} ฉบับ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${icon('graph-up-arrow')}</div>
+        <div class="stat-label">ดอกเบี้ย 6% คาดการณ์</div>
+        <div class="stat-value text-info">${money(l.total_interest)}</div>
+        <div class="stat-note">ยอดเรียกเก็บรวม ${money(l.total_receivable)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${icon('check2-circle')}</div>
+        <div class="stat-label">ยอดรับชำระคืนแล้ว</div>
+        <div class="stat-value text-success">${money(l.total_collected)}</div>
+        <div class="stat-note">เงินต้น + ดอกเบี้ย</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${icon('exclamation-octagon')}</div>
+        <div class="stat-label">หนี้คงค้างสุทธิ</div>
+        <div class="stat-value text-danger">${money(l.total_outstanding)}</div>
+        <div class="stat-note">ยอดที่ต้องติดตาม</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:18px">
+      <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+        <h3 class="card-title">การจำแนกหนี้ตามสถานะความเสี่ยง</h3>
+        <div style="margin-top:14px">
+          ${(r.debt_by_risk || []).map(d => `
+            <div class="receipt-row">
+              <span>
+                ${d.risk_status === 'normal' ? '<span class="badge badge-success">ปกติ</span>' : `<span class="badge badge-warning">${esc(d.risk_status)}</span>`}
+                (${d.member_count} สมาชิก)
+              </span>
+              <strong>คงเหลือ ${money(Math.max(0, Number(d.payable) - Number(d.paid)))} บาท</strong>
+            </div>
+          `).join('') || '<div class="text-muted">ยังไม่มีข้อมูลหนี้</div>'}
+        </div>
+      </div>
+
+      <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+        <h3 class="card-title">สรุปบัญชีรายรับ-รายจ่าย (Ledger) ประจำปี ${year}</h3>
+        <div style="margin-top:14px">
+          <div class="receipt-row">
+            <span>รายรับสะสม</span>
+            <strong class="text-success">${money(ledger.income)} บาท</strong>
+          </div>
+          <div class="receipt-row">
+            <span>รายจ่ายสะสม</span>
+            <strong class="text-danger">${money(ledger.expense)} บาท</strong>
+          </div>
+          <div class="receipt-row" style="border-top:2px solid var(--border);padding-top:10px">
+            <strong>เงินสดคงเหลือสุทธิ</strong>
+            <strong class="${ledger.balance >= 0 ? 'text-success' : 'text-danger'}">${money(ledger.balance)} บาท</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderFinancialStatement(container){
+  const mListRes = await api('api/members.php?action=list');
+  const members = (mListRes?.data || []).filter(x => x.role === 'member');
+  const selectedId = state.selectedReportMemberId || members[0]?.id;
+
+  container.innerHTML = `
+    <div class="toolbar" style="margin-bottom:16px">
+      <label class="form-label" style="margin:0">เลือกสมาชิกเพื่อดู Statement:</label>
+      <select class="form-select" style="max-width:350px" onchange="state.selectedReportMemberId=Number(this.value);renderFinancialStatement($('#financial-subtab-content'))">
+        ${members.map(m => `<option value="${m.id}" ${m.id == selectedId ? 'selected' : ''}>${esc(m.fullname)} (${esc(m.username)})</option>`).join('')}
+      </select>
+    </div>
+    <div id="financial-statement-detail"></div>
+  `;
+
+  if (!selectedId) {
+    $('#financial-statement-detail').innerHTML = empty('ยังไม่มีข้อมูลสมาชิก');
+    return;
+  }
+
+  const detailRes = await api(`api/reports.php?action=member_detail&member_id=${selectedId}`);
+  if (!detailRes) {
+    $('#financial-statement-detail').innerHTML = empty('ไม่สามารถโหลดข้อมูล Statement ได้');
+    return;
+  }
+
+  const m = detailRes.member;
+  const reqs = detailRes.requests || [];
+
+  $('#financial-statement-detail').innerHTML = `
+    <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Statement บัญชีเงินกู้: ${esc(m.fullname)}</h3>
+          <p class="card-subtitle">รหัสสมาชิก: ${esc(m.username)} | บัตรประชาชน: ${esc(m.national_id || '-')}</p>
+        </div>
+      </div>
+      ${reqs.length ? reqs.map(r => `
+        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>
+              <strong>สัญญาคำขอ #${r.id} (ปีงบประมาณ ${esc(r.year_be)})</strong>
+              <div class="small text-muted">รูปแบบการชำระ: ${r.payment_mode === 'lump_sum' ? 'ชำระก้อนเดียว' : `แบ่ง ${r.installment_count} งวด`} · ดอกเบี้ย 6% ต่อปี</div>
+            </div>
+            <div>${badge(r.status)}</div>
+          </div>
+          <div class="grid grid-3" style="margin-bottom:14px">
+            <div class="stat-card" style="padding:12px">
+              <div class="small text-muted">ยอดเงินต้น</div>
+              <strong>${money(r.amount_requested)} บาท</strong>
+            </div>
+            <div class="stat-card" style="padding:12px">
+              <div class="small text-muted">ชำระคืนแล้ว</div>
+              <strong class="text-success">${money(r.total_paid)} บาท</strong>
+            </div>
+            <div class="stat-card" style="padding:12px">
+              <div class="small text-muted">คงเหลือสุทธิ</div>
+              <strong class="${Number(r.remaining) > 0 ? 'text-danger' : 'text-muted'}">${money(r.remaining)} บาท</strong>
+            </div>
+          </div>
+
+          ${(r.installments || []).length ? `
+            <div class="section-title">ตารางงวดชำระ</div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>งวดที่</th>
+                    <th>วันครบกำหนด</th>
+                    <th>เงินต้น</th>
+                    <th>ดอกเบี้ย</th>
+                    <th>ยอดเรียกเก็บ</th>
+                    <th>สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${r.installments.map(i => `
+                    <tr>
+                      <td>${i.installment_no}</td>
+                      <td>${esc(i.due_date)}</td>
+                      <td>${money(i.principal_due)}</td>
+                      <td>${money(i.interest_due)}</td>
+                      <td><strong>${money(i.amount_due)} บาท</strong></td>
+                      <td>${i.status === 'paid' ? '<span class="badge badge-success">ชำระแล้ว</span>' : i.status === 'partial' ? '<span class="badge badge-warning">ชำระบางส่วน</span>' : '<span class="badge badge-neutral">รอชำระ</span>'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+
+          ${(r.payments || []).length ? `
+            <div class="section-title" style="margin-top:14px">ประวัติการชำระเงินและหลักฐาน</div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>วันที่</th>
+                    <th>เลขที่ใบเสร็จ</th>
+                    <th>ช่องทาง</th>
+                    <th>จำนวนเงิน</th>
+                    <th>สถานะ</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${r.payments.map(p => `
+                    <tr>
+                      <td>${esc(p.payment_date)}</td>
+                      <td><strong>${esc(p.receipt_number || '-')}</strong></td>
+                      <td>${p.payment_channel === 'cash' ? 'เงินสด' : 'โอนเงิน'}</td>
+                      <td class="text-success fw-bold">${money(p.amount)} บาท</td>
+                      <td><span class="badge badge-success">ยืนยันแล้ว</span></td>
+                      <td>
+                        <button class="btn btn-secondary btn-sm" onclick="showReceipt(${p.id})">
+                          ${icon('printer')} ใบเสร็จ
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : '<div class="text-muted small" style="margin-top:10px">ยังไม่มีรายการรับชำระสำหรับสัญญานี้</div>'}
+        </div>
+      `).join('') : empty('ยังไม่มีข้อมูลสัญญา')}
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// 4. Official Printable Forms (Contracts, Guarantor, Proposal)
+// -------------------------------------------------------------
+async function renderFormsReport(container){
+  container.innerHTML = `<div class="empty">${icon('arrow-repeat')} กำลังเตรียมรายการแบบฟอร์ม...</div>`;
+  const reqRes = await api('api/requests.php?action=list');
+  const reqs = reqRes?.data || [];
+
+  if (!reqs.length) {
+    container.innerHTML = empty('ยังไม่มีคำขอในระบบสำหรับพิมพ์แบบฟอร์ม');
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="toolbar" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label class="form-label" style="margin:0">เลือกคำขอ/สัญญา:</label>
+        <select class="form-select" id="form-sel-request" style="max-width:380px" onchange="previewOfficialForm()">
+          ${reqs.map(x => `<option value="${x.id}">คำขอ #${x.id} - ${esc(x.fullname)} (วงเงิน ${money(x.amount_requested)} บาท)</option>`).join('')}
+        </select>
+        <label class="form-label" style="margin:0 0 0 10px">เลือกแบบฟอร์ม:</label>
+        <select class="form-select" id="form-sel-type" style="max-width:280px" onchange="previewOfficialForm()">
+          <option value="contract">๑. สัญญากู้ยืมเงินโครงการประชารัฐ</option>
+          <option value="guarantor">๒. สัญญาค้ำประกันเงินกู้</option>
+          <option value="proposal">๓. แบบคำขอกู้ยืมเงิน / ปัจจัยการผลิต (กทบ.01/02)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="window.print()">${icon('printer')} พิมพ์เอกสารนี้ (Print A4)</button>
+    </div>
+
+    <div class="print-doc-container">
+      <div id="form-preview-mount"></div>
+    </div>
+  `;
+
+  previewOfficialForm();
+}
+
+async function previewOfficialForm(){
+  const reqId = Number($('#form-sel-request')?.value || 0);
+  const formType = $('#form-sel-type')?.value || 'contract';
+  const mount = $('#form-preview-mount');
+  if (!reqId || !mount) return;
+
+  mount.innerHTML = `<div class="empty">${icon('arrow-repeat')} กำลังจัดเตรียมเอกสารแบบฟอร์ม...</div>`;
+  const r = await api(`api/reports.php?action=form_data&request_id=${reqId}`);
+  if (!r || !r.form_data) {
+    mount.innerHTML = empty('ไม่สามารถโหลดข้อมูลเอกสารได้');
+    return;
+  }
+
+  const d = r.form_data;
+  mount.innerHTML = generateFormHtml(formType, d);
+}
+
+function printOfficialFormModal(requestId){
+  openModal('พิมพ์แบบฟอร์มเอกสาร / สัญญา', `
+    <div class="toolbar" style="margin-bottom:14px">
+      <label class="form-label" style="margin:0">เลือกแบบฟอร์ม:</label>
+      <select class="form-select" id="modal-form-type" style="max-width:320px" onchange="loadModalFormPreview(${requestId})">
+        <option value="contract">๑. สัญญากู้ยืมเงินโครงการประชารัฐ</option>
+        <option value="guarantor">๒. สัญญาค้ำประกันเงินกู้</option>
+        <option value="proposal">๓. แบบคำขอกู้ยืมเงิน (กทบ.01/02)</option>
+      </select>
+      <button class="btn btn-primary" onclick="window.print()">${icon('printer')} พิมพ์ (Print)</button>
+    </div>
+    <div class="print-doc-container" style="max-height:70vh;overflow-y:auto">
+      <div id="modal-form-mount"></div>
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>`);
+
+  loadModalFormPreview(requestId);
+}
+
+async function loadModalFormPreview(requestId){
+  const formType = $('#modal-form-type')?.value || 'contract';
+  const mount = $('#modal-form-mount');
+  if (!mount) return;
+  mount.innerHTML = `<div class="empty">${icon('arrow-repeat')} กำลังเตรียมเอกสาร...</div>`;
+  const r = await api(`api/reports.php?action=form_data&request_id=${requestId}`);
+  if (!r || !r.form_data) {
+    mount.innerHTML = empty('ไม่สามารถโหลดข้อมูลได้');
+    return;
+  }
+  mount.innerHTML = generateFormHtml(formType, r.form_data);
+}
+
+function generateFormHtml(type, d){
+  const req = d.request;
+  const items = d.items || [];
+  const guarantors = d.guarantors || [];
+  const plan = d.payment_plan;
+  const v = d.village_info;
+  const createdDate = new Date(req.created_at);
+  const thaiDate = `${createdDate.getDate()} เดือน ${['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][createdDate.getMonth()]} พ.ศ. ${createdDate.getFullYear() + 543}`;
+
+  if (type === 'contract') {
+    return `
+      <div class="print-doc">
+        <div class="doc-header">
+          <div class="doc-title">สัญญากู้ยืมเงินโครงการประชารัฐ (ปุ๋ย ยา และเมล็ดพันธุ์)</div>
+          <div class="doc-subtitle">${esc(v.full_address)}</div>
+          <div class="doc-meta-row">
+            <div><strong>สัญญาเลขที่:</strong> ${esc(req.year_be)}/${String(req.id).padStart(4,'0')}</div>
+            <div><strong>ทำขึ้นเมื่อวันที่:</strong> ${thaiDate}</div>
+          </div>
+        </div>
+
+        <div class="doc-body">
+          <div class="doc-clause">
+            สัญญานี้ทำขึ้น ณ ที่ทำการ${esc(v.name)} ระหว่าง <strong>${esc(v.name)}</strong> โดย <span class="doc-fill">${esc(d.officers.president)}</span> ตำแหน่ง ประธานกรรมการกองทุนหมู่บ้าน ซึ่งต่อไปในสัญญานี้เรียกว่า <strong>"ผู้ให้กู้"</strong> ฝ่ายหนึ่ง กับ
+          </div>
+          <div class="doc-clause">
+            <span class="doc-fill">${esc(req.fullname)}</span> เลขประจำตัวประชาชน <span class="doc-fill">${esc(req.national_id || '...........................................')}</span> อยู่บ้านเลขที่ <span class="doc-fill">${esc(req.address || '...........................................')}</span> โทรศัพท์ <span class="doc-fill">${esc(req.phone || '......................')}</span> ซึ่งต่อไปในสัญญานี้เรียกว่า <strong>"ผู้กู้"</strong> อีกฝ่ายหนึ่ง ทั้งสองฝ่ายได้ตกลงทำสัญญามีข้อความดังต่อไปนี้
+          </div>
+          <div class="doc-clause">
+            <strong>ข้อ ๑.</strong> ผู้กู้ได้กู้ยืมเงินจากผู้ให้กู้เพื่อเป็นค่าจัดซื้อปัจจัยการผลิต (ปุ๋ย ยา และเมล็ดพันธุ์) เป็นจำนวนเงินทั้งสิ้น <span class="doc-fill">${money(d.amount_num)} บาท</span> (<span class="doc-fill">${esc(d.amount_text)}</span>) ตามรายการปัจจัยการผลิตที่ระบุไว้ในคำขอ
+          </div>
+          <div class="doc-clause">
+            <strong>ข้อ ๒.</strong> ผู้กู้ยินยอมชำระดอกเบี้ยให้แก่ผู้ให้กู้ในอัตราร้อยละ <strong>๖ (หก) ต่อปี</strong> คิดเป็นดอกเบี้ยทั้งสิ้น <span class="doc-fill">${money(plan ? plan.interest_amount : d.amount_num * 0.06)} บาท</span> รวมเป็นเงินต้นและดอกเบี้ยที่ต้องชำระคืนทั้งสิ้น <span class="doc-fill">${money(d.total_payable_num)} บาท</span> (<span class="doc-fill">${esc(d.total_payable_text)}</span>)
+          </div>
+          <div class="doc-clause">
+            <strong>ข้อ ๓.</strong> ผู้กู้ตกลงชำระเงินกู้ยืมและดอกเบี้ยคืนแก่ผู้ให้กู้ตามแผนการชำระเงินแบบ <strong>${plan?.payment_mode === 'lump_sum' ? 'ชำระก้อนเดียวเต็มจำนวน' : `แบ่งชำระเป็นจำนวน ${plan?.installment_count || 12} งวด`}</strong> ภายในกำหนดระยะเวลาที่ระบุไว้ในตารางชำระหนี้
+          </div>
+          <div class="doc-clause">
+            <strong>ข้อ ๔.</strong> ในการกู้ยืมเงินตามสัญญานี้ ผู้กู้ได้จัดให้มีบุคคลเข้าทำสัญญาค้ำประกันการชำระหนี้ของผู้กู้ตามจำนวนที่ระเบียบกำหนดไว้โดยครบถ้วน
+          </div>
+          <div class="doc-clause">
+            สัญญานี้ทำขึ้นเป็นสองฉบับมีข้อความถูกต้องตรงกัน คู่สัญญาได้อ่านและเข้าใจข้อความโดยละเอียดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญต่อหน้าพยาน
+          </div>
+
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th style="width:10%">ลำดับ</th>
+                <th>รายการปัจจัยการผลิต</th>
+                <th style="width:15%">จำนวน</th>
+                <th style="width:20%">ราคาต่อหน่วย</th>
+                <th style="width:20%">รวมเป็นเงิน</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((it, idx) => `
+                <tr>
+                  <td style="text-align:center">${idx + 1}</td>
+                  <td>${esc(it.item_name_snapshot)}</td>
+                  <td style="text-align:center">${it.quantity} ${esc(it.unit_snapshot)}</td>
+                  <td style="text-align:right">${money(it.unit_price_snapshot)}</td>
+                  <td style="text-align:right">${money(it.line_total)}</td>
+                </tr>
+              `).join('')}
+              <tr>
+                <td colspan="4" style="text-align:right;font-weight:700">รวมเป็นเงินทั้งสิ้น</td>
+                <td style="text-align:right;font-weight:700">${money(d.amount_num)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="doc-signatures">
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................ผู้กู้</div>
+              <div class="sig-role">(${esc(req.fullname)})</div>
+            </div>
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................ผู้ให้กู้</div>
+              <div class="sig-role">(${esc(d.officers.president)})<br>ประธานกรรมการกองทุนหมู่บ้าน</div>
+            </div>
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................พยาน</div>
+              <div class="sig-role">(${esc(d.officers.committees[0] || 'กรรมการกองทุนหมู่บ้าน')})</div>
+            </div>
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................พยาน</div>
+              <div class="sig-role">(${esc(d.officers.committees[1] || 'กรรมการกองทุนหมู่บ้าน')})</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (type === 'guarantor') {
+    return `
+      <div class="print-doc">
+        <div class="doc-header">
+          <div class="doc-title">สัญญาค้ำประกันเงินกู้โครงการประชารัฐ</div>
+          <div class="doc-subtitle">${esc(v.full_address)}</div>
+          <div class="doc-meta-row">
+            <div><strong>ประกอบสัญญากู้เลขที่:</strong> ${esc(req.year_be)}/${String(req.id).padStart(4,'0')}</div>
+            <div><strong>ทำขึ้นเมื่อวันที่:</strong> ${thaiDate}</div>
+          </div>
+        </div>
+
+        <div class="doc-body">
+          <div class="doc-clause">
+            สัญญานี้ทำขึ้น ณ ที่ทำการ${esc(v.name)} โดยข้าพเจ้าผู้มีรายนามดังต่อไปนี้ ซึ่งต่อไปในสัญญานี้เรียกว่า <strong>"ผู้ค้ำประกัน"</strong>
+          </div>
+          ${guarantors.map((g, i) => `
+            <div class="doc-clause" style="margin-bottom:8px">
+              <strong>${i + 1}.</strong> <span class="doc-fill">${esc(g.fullname)}</span> เลขประจำตัวประชาชน <span class="doc-fill">${esc(g.national_id || '...........................................')}</span> อยู่บ้านเลขที่ <span class="doc-fill">${esc(g.address || '...........................................')}</span> โทรศัพท์ <span class="doc-fill">${esc(g.phone || '......................')}</span>
+            </div>
+          `).join('') || '<div class="notice">ยังไม่มีรายชื่อผู้ค้ำประกันในระบบ</div>'}
+
+          <div class="doc-clause" style="margin-top:14px">
+            ได้ตกลงทำสัญญาค้ำประกันให้ไว้แก่ <strong>${esc(v.name)}</strong> ซึ่งต่อไปนี้เรียกว่า <strong>"ผู้ให้กู้"</strong> ดังมีข้อความต่อไปนี้
+          </div>
+          <div class="doc-clause">
+            <strong>ข้อ ๑.</strong> ตามที่ <span class="doc-fill">${esc(req.fullname)}</span> (ผู้กู้) ได้ทำสัญญากู้ยืมเงินโครงการประชารัฐ ฉบับลงวันที่ ${thaiDate} เพื่อซื้อปัจจัยการผลิตเป็นจำนวนเงิน <span class="doc-fill">${money(d.amount_num)} บาท</span> (<span class="doc-fill">${esc(d.amount_text)}</span>) พร้อมดอกเบี้ยตามสัญญานั้น
+          </div>
+          <div class="doc-clause">
+            <strong>ข้อ ๒.</strong> ผู้ค้ำประกันตกลงยินยอมผูกพันตนเข้าเป็นผู้ค้ำประกันหนี้ของผู้กู้ดังกล่าวข้างต้น หากผู้กู้ผิดนัดไม่ชำระหนี้ไม่ว่ากรณีใดๆ ผู้ค้ำประกันยินยอมรับผิดชดใช้หนี้เงินต้น ดอกเบี้ย และค่าเสียหายอันพึงมี ให้แก่ผู้ให้กู้จนครบถ้วน
+          </div>
+          <div class="doc-clause">
+            ผู้ค้ำประกันได้อ่านและเข้าใจข้อความในสัญญานี้โดยละเอียดตลอดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญ
+          </div>
+
+          <div class="doc-signatures">
+            ${guarantors.map(g => `
+              <div class="sig-box">
+                <div class="sig-line"></div>
+                <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกัน</div>
+                <div class="sig-role">(${esc(g.fullname)})</div>
+              </div>
+            `).join('')}
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................พยาน</div>
+              <div class="sig-role">(${esc(d.officers.president)})</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // Proposal (กทบ. 01/02)
+    return `
+      <div class="print-doc">
+        <div class="doc-header">
+          <div class="doc-title">แบบคำขอกู้ยืมเงิน / ปัจจัยการผลิต โครงการประชารัฐ (กทบ.๐๑/๐๒)</div>
+          <div class="doc-subtitle">${esc(v.full_address)}</div>
+          <div class="doc-meta-row">
+            <div><strong>คำขอเลขที่:</strong> REQ-${esc(req.year_be)}-${String(req.id).padStart(4,'0')}</div>
+            <div><strong>วันที่ยื่นคำขอ:</strong> ${thaiDate}</div>
+          </div>
+        </div>
+
+        <div class="doc-body">
+          <div class="doc-clause">
+            ข้าพเจ้า <span class="doc-fill">${esc(req.fullname)}</span> รหัสสมาชิก <span class="doc-fill">${esc(req.member_code)}</span> เลขประจำตัวประชาชน <span class="doc-fill">${esc(req.national_id || '...........................................')}</span> อยู่บ้านเลขที่ <span class="doc-fill">${esc(req.address || '...........................................')}</span> เบอร์โทรศัพท์ <span class="doc-fill">${esc(req.phone || '......................')}</span>
+          </div>
+          <div class="doc-clause">
+            มีความประสงค์ขอกู้ยืมเงินในโครงการประชารัฐ (ปุ๋ย ยา และเมล็ดพันธุ์) ประจำปีงบประมาณ <span class="doc-fill">${esc(req.year_be)}</span> วงเงินทั้งสิ้น <span class="doc-fill">${money(d.amount_num)} บาท</span> (<span class="doc-fill">${esc(d.amount_text)}</span>) เพื่อวัตถุประสงค์: <span class="doc-fill">${esc(req.purpose || 'จัดซื้อปัจจัยการผลิตทางการเกษตร')}</span>
+          </div>
+
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>ลำดับ</th>
+                <th>รายการปัจจัยการผลิตที่ต้องการ</th>
+                <th>จำนวน</th>
+                <th>ราคาอ้างอิง</th>
+                <th>รวมเงิน</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((it, idx) => `
+                <tr>
+                  <td style="text-align:center">${idx + 1}</td>
+                  <td>${esc(it.item_name_snapshot)}</td>
+                  <td style="text-align:center">${it.quantity} ${esc(it.unit_snapshot)}</td>
+                  <td style="text-align:right">${money(it.unit_price_snapshot)}</td>
+                  <td style="text-align:right">${money(it.line_total)}</td>
+                </tr>
+              `).join('')}
+              <tr>
+                <td colspan="4" style="text-align:right;font-weight:700">ยอดรวมคำขอ</td>
+                <td style="text-align:right;font-weight:700">${money(d.amount_num)} บาท</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="section-title">รายชื่อบุคคลผู้ค้ำประกัน</div>
+          ${guarantors.map((g, i) => `
+            <div style="font-size:13px;margin-bottom:6px">
+              ${i + 1}. <span class="doc-fill">${esc(g.fullname)}</span> เลขบัตร: ${esc(g.national_id || '-')} โทร: ${esc(g.phone || '-')}
+            </div>
+          `).join('') || '<div class="text-muted small">ไม่มีรายชื่อผู้ค้ำประกัน</div>'}
+
+          <div class="doc-signatures" style="margin-top:28px">
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................ผู้ยื่นคำขอ</div>
+              <div class="sig-role">(${esc(req.fullname)})</div>
+            </div>
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <div class="sig-name">(ลงชื่อ).................................................................ผู้รับคำขอ</div>
+              <div class="sig-role">(เจ้าหน้าที่/กรรมการกองทุนหมู่บ้าน)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
 async function line(c){c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">ประกาศแจ้งเตือน LINE</h2><p class="card-subtitle">ช่องทางสื่อสารที่อยู่ในขอบเขตโครงการ</p></div></div><form id="line-form"><div class="form-group"><label class="form-label">ข้อความประกาศ</label><textarea class="form-control" id="line-msg" placeholder="เขียนข้อความที่ต้องการแจ้งสมาชิก" required></textarea></div><button class="btn btn-primary" type="submit">${icon('send')}ส่งประกาศ</button></form><div class="notice" style="margin-top:15px">การเชื่อมต่อ LINE จริงจะใช้ค่าการตั้งค่าของโครงการในภายหลัง หน้านี้เตรียม Workflow ไว้แล้ว</div></div>`;$('#line-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/line_notify.php?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:$('#line-msg').value})});if(r)toast(r.message)})}
 async function risk(c){const r=await api('api/members.php?action=list');const rows=(r?.data||[]).filter(x=>x.risk_status!=='normal');c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">จัดการสถานะสมาชิกกรณีพิเศษ</h2><p class="card-subtitle">พักชำระหนี้หรือเสียชีวิต โดยเก็บข้อมูลย้อนหลังไว้</p></div></div>${rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.fullname)}</td><td><span class="badge badge-warning">${esc(x.risk_status)}</span></td><td><button class="btn btn-secondary btn-sm" onclick="restoreRisk(${x.id})">${icon('arrow-counterclockwise')}เปลี่ยนเป็นปกติ</button></td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีสมาชิกในสถานะพิเศษ','shield-check')}</div>`}
 async function restoreRisk(id){const r=await api('api/members.php?action=update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,risk_status:'normal'})});if(r)nav('risk')}

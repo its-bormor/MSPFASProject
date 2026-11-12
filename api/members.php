@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/spreadsheet_helper.php';
 $user = require_login();
 $action = $_GET['action'] ?? 'list';
 
@@ -47,6 +48,155 @@ try {
     }
     require_role(['committee','president']);
 
+    if ($action === 'import_template') {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="member_import_template.csv"');
+        echo "\xEF\xBB\xBF";
+        $out = fopen('php://output', 'w');
+        fputcsv($out, ['รหัสสมาชิก', 'ชื่อ-นามสกุล', 'เลขบัตรประชาชน', 'เบอร์โทรศัพท์', 'รหัสผ่าน', 'สถานะสมรส', 'ชื่อคู่สมรส', 'ที่อยู่'], ',', '"', "\\");
+        fputcsv($out, ['M001', 'นายสมชาย ใจดี', '1549900123456', '0812345678', '123456', 'สมรส', 'นางสมหญิง ใจดี', '123 หมู่ 5 ต.แม่ยางตาล อ.ร้องกวาง จ.แพร่'], ',', '"', "\\");
+        fputcsv($out, ['M002', 'นางสาวมาลี รักสงบ', '1549900234567', '0898765432', '123456', 'โสด', '', '45 หมู่ 5 ต.แม่ยางตาล อ.ร้องกวาง จ.แพร่'], ',', '"', "\\");
+        fclose($out);
+        exit;
+    }
+
+    if ($action === 'import') {
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            json_response(['status' => 'error', 'message' => 'กรุณาเลือกไฟล์ที่ต้องการนำเข้า'], 422);
+        }
+        $file = $_FILES['file'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['csv', 'xlsx'], true)) {
+            json_response(['status' => 'error', 'message' => 'รองรับเฉพาะไฟล์ .csv หรือ .xlsx เท่านั้น'], 422);
+        }
+
+        try {
+            $rows = $ext === 'xlsx' ? parse_xlsx_file($file['tmp_name']) : parse_csv_file($file['tmp_name']);
+        } catch (Throwable $e) {
+            json_response(['status' => 'error', 'message' => 'ไม่สามารถอ่านไฟล์ได้: ' . $e->getMessage()], 422);
+        }
+
+        if (count($rows) < 2) {
+            json_response(['status' => 'error', 'message' => 'ไฟล์ไม่มีข้อมูลสมาชิก หรือไม่มีแถวหัวตาราง'], 422);
+        }
+
+        $headerRow = array_shift($rows);
+        $colKeyMap = normalize_member_headers($headerRow);
+
+        if (!in_array('username', $colKeyMap, true) || !in_array('fullname', $colKeyMap, true)) {
+            json_response([
+                'status' => 'error',
+                'message' => 'หัวตารางต้องมีคอลัมน์ "รหัสสมาชิก" (username) และ "ชื่อ-นามสกุล" (fullname) เป็นอย่างน้อย'
+            ], 422);
+        }
+
+        $imported = 0;
+        $updated = 0;
+        $skipped = 0;
+        $errors = [];
+
+        $maritalMap = [
+            'โสด' => 'single', 'single' => 'single',
+            'สมรส' => 'married', 'married' => 'married',
+            'หม้าย' => 'widowed', 'widowed' => 'widowed',
+            'หย่า' => 'divorced', 'หย่าร้าง' => 'divorced', 'divorced' => 'divorced'
+        ];
+        $riskMap = [
+            'ปกติ' => 'normal', 'normal' => 'normal',
+            'พักชำระหนี้' => 'suspended', 'พักชำระ' => 'suspended', 'suspended' => 'suspended',
+            'เสียชีวิต' => 'deceased', 'deceased' => 'deceased'
+        ];
+
+        $pdo->beginTransaction();
+        try {
+            foreach ($rows as $lineIdx => $row) {
+                $rowNum = $lineIdx + 2;
+                $record = [];
+                foreach ($colKeyMap as $colIdx => $key) {
+                    $record[$key] = $row[$colIdx] ?? '';
+                }
+
+                $username = trim((string)($record['username'] ?? ''));
+                $fullname = trim((string)($record['fullname'] ?? ''));
+                if ($username === '' || $fullname === '') {
+                    $skipped++;
+                    $errors[] = "แถวที่ {$rowNum}: ข้ามเนื่องจากชื่อผู้ใช้หรือชื่อ-นามสกุลว่าง";
+                    continue;
+                }
+
+                $nationalId = trim((string)($record['national_id'] ?? ''));
+                $nationalId = $nationalId === '' ? null : preg_replace('/[^0-9]/', '', $nationalId);
+                if ($nationalId !== null && strlen($nationalId) !== 13) {
+                    $nationalId = null;
+                }
+
+                $phone = trim((string)($record['phone'] ?? ''));
+                $passwordRaw = trim((string)($record['password'] ?? ''));
+                if ($passwordRaw === '') {
+                    $passwordRaw = '123456';
+                }
+                $passwordHash = password_hash($passwordRaw, PASSWORD_DEFAULT);
+
+                $role = strtolower(trim((string)($record['role'] ?? 'member')));
+                if (!in_array($role, ['member', 'committee', 'president'], true)) {
+                    $role = 'member';
+                }
+
+                $marital = mb_strtolower(trim((string)($record['marital_status'] ?? 'single')), 'UTF-8');
+                $maritalStatus = $maritalMap[$marital] ?? 'single';
+
+                $spouseName = trim((string)($record['spouse_name'] ?? ''));
+                $address = trim((string)($record['address'] ?? ''));
+
+                $risk = mb_strtolower(trim((string)($record['risk_status'] ?? 'normal')), 'UTF-8');
+                $riskStatus = $riskMap[$risk] ?? 'normal';
+
+                $check = $pdo->prepare('SELECT id FROM members WHERE username = ? LIMIT 1');
+                $check->execute([$username]);
+                $existing = $check->fetch();
+
+                if ($existing) {
+                    $memberId = (int)$existing['id'];
+                    $upStmt = $pdo->prepare('UPDATE members SET fullname=?, national_id=COALESCE(?, national_id), phone=COALESCE(?, phone), marital_status=?, spouse_name=?, address=?, risk_status=?, is_active=1 WHERE id=?');
+                    $upStmt->execute([$fullname, $nationalId, $phone !== '' ? $phone : null, $maritalStatus, $spouseName, $address, $riskStatus, $memberId]);
+                    $updated++;
+                } else {
+                    if ($nationalId !== null) {
+                        $checkNid = $pdo->prepare('SELECT id FROM members WHERE national_id = ? LIMIT 1');
+                        $checkNid->execute([$nationalId]);
+                        if ($checkNid->fetch()) {
+                            $nationalId = null;
+                        }
+                    }
+
+                    $insStmt = $pdo->prepare('INSERT INTO members (username, password, fullname, national_id, phone, role, marital_status, spouse_name, address, risk_status, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)');
+                    $insStmt->execute([$username, $passwordHash, $fullname, $nationalId, $phone, $role, $maritalStatus, $spouseName, $address, $riskStatus]);
+                    $imported++;
+                }
+            }
+
+            $pdo->commit();
+            $pdo->prepare('INSERT INTO audit_logs(user_id, action, details, ip_address) VALUES(?, ?, ?, ?)')
+                ->execute([$user['id'], 'member_import', "นำเข้าสมาชิก: สำเร็จ {$imported}, อัปเดต {$updated}, ข้าม {$skipped}", $_SERVER['REMOTE_ADDR'] ?? null]);
+
+            json_response([
+                'status' => 'success',
+                'message' => "นำเข้าข้อมูลสมาชิกเรียบร้อยแล้ว (เพิ่มใหม่ {$imported} ราย, อัปเดต {$updated} ราย, ข้าม {$skipped} ราย)",
+                'summary' => [
+                    'total' => count($rows),
+                    'imported' => $imported,
+                    'updated' => $updated,
+                    'skipped' => $skipped,
+                    'errors' => array_slice($errors, 0, 10),
+                ]
+            ]);
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log('Import error: ' . $e->getMessage());
+            json_response(['status' => 'error', 'message' => 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' . $e->getMessage()], 500);
+        }
+    }
+
     if ($action === 'create') {
         $d=json_input();
         $username=trim((string)($d['username']??''));
@@ -56,7 +206,6 @@ try {
         $check=$pdo->prepare('SELECT id FROM members WHERE username=? LIMIT 1'); $check->execute([$username]);
         if ($check->fetch()) json_response(['status'=>'error','message'=>'ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น'],409);
         $national=trim((string)($d['national_id']??''));
-        // Empty national IDs must be stored as NULL. An empty string is still a real value under UNIQUE.
         $national = $national === '' ? null : $national;
         if ($national !== null) {
             $check=$pdo->prepare('SELECT id FROM members WHERE national_id=? LIMIT 1');
@@ -68,7 +217,6 @@ try {
         $stmt=$pdo->prepare('INSERT INTO members (username,password,fullname,national_id,phone,role,marital_status,spouse_name,address) VALUES (?,?,?,?,?,?,?,?,?)');
         $stmt->execute([$username,password_hash($password,PASSWORD_DEFAULT),$fullname,$national,trim((string)($d['phone']??'')),$role,$d['marital_status']??'single',trim((string)($d['spouse_name']??'')),trim((string)($d['address']??''))]);
         $id=(int)$pdo->lastInsertId();
-        // Audit logging must never make a successful member creation look like a failed request.
         try {
             $pdo->prepare('INSERT INTO audit_logs(user_id,action,details,ip_address) VALUES(?,?,?,?)')->execute([$user['id'],'member_create','สร้างสมาชิก ID '.$id,$_SERVER['REMOTE_ADDR']??null]);
         } catch (Throwable $auditError) {
