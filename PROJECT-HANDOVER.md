@@ -1,5 +1,7 @@
 # รายงานสรุปสถานะและคู่มือส่งต่องาน (Project Handover & Context Backup)
 
+> **อัปเดตล่าสุด:** 14 พฤศจิกายน พ.ศ. 2569 เวลา 16:33 น.
+
 เอกสารนี้จัดทำขึ้นเพื่อเป็นบันทึกบริบท (Context Backup) เมื่อมีการสลับบัญชีใช้งาน เพื่อให้ AI หรือผู้พัฒนาท่านต่อไปสามารถอ่านและทำงานต่อได้ทันทีโดยไม่ขาดตอน
 
 ---
@@ -67,16 +69,68 @@
 
 ---
 
-## 5. การแก้ไขและปรับปรุงล่าสุด
+## 5. การแก้ไขและปรับปรุงล่าสุด (Commits สำคัญ)
+
+| Commit | สรุปงานที่ทำ |
+|:---|:---|
+| `22788ac` | เพิ่มระบบจัดการบทบาทสมาชิก (member/committee/president) และ auto-migrate plaintext password เป็น bcrypt |
+| `40feba8` | สร้าง Mock Data 50 สมาชิก, 47 คำขอ, 59 ชำระ, 12 สินค้า, Ledger 9 รายการ; ทำ PROJECT-HANDOVER.md |
+| `4cbec45` (**ล่าสุด**) | เพิ่ม Official Print Engine ใน `assets/js/main.js`: โลโก้ กทบ. (SVG), เลขไทย, `printOfficialAnnualReport`, `printOfficialMemberRoster`, `printOfficialIndividualMember`, `printOfficialFinancialReport`, ระบบปริ้น CSS A4 ทางการ |
+
+### รายละเอียดการปรับปรุงแต่ละจุด
+
 1. **คอนฟิกฐานข้อมูล ([config/.env](file:///D:/Work/Project/config/.env)):** ตั้งค่า Host, DB, User สำหรับ Local XAMPP
 2. **ระบบล็อกอิน ([api/auth.php](file:///D:/Work/Project/api/auth.php)):**
-   * รองรับการตรวจสอบรหัสผ่านเดิม และเพิ่ม Auto-migration หากมีรหัสผ่าน Plaintext ใน phpMyAdmin ให้ล็อกอินได้และแปลงเป็น Bcrypt Hash อัตโนมัติ
-3. **การจัดการสมาชิกและคณะกรรมการ ([assets/js/main.js](file:///D:/Work/Project/assets/js/main.js), [api/members.php](file:///D:/Work/Project/api/members.php)):**
+   * รองรับการตรวจสอบรหัสผ่านเดิม และเพิ่ม Auto-migration หากมีรหัสผ่าน Plaintext ให้ล็อกอินได้และแปลงเป็น Bcrypt Hash อัตโนมัติ
+3. **การจัดการสมาชิกและคณะกรรมการ:**
    * เพิ่มช่องเลือกบทบาท (`member`, `committee`, `president`) ในหน้าเพิ่ม/แก้ไขสมาชิก
    * แสดงคอลัมน์บทบาทในตาราง พร้อมตัวกรองบทบาท
-   * ปลดล็อกให้แสดงทั้งคณะกรรมการและประธานในตาราง
-4. **เครื่องมือพิมพ์รายงาน (Print Engine):**
-   * ปรับปรุง CSS สำหรับพิมพ์ A4 ทางการ ซ่อนปุ่มและ Toolbar ทั้งหมดในขณะพิมพ์ รองรับตารางแบบฟอร์มราชการ
+4. **Print Engine (ครบถ้วน - commit `4cbec45`):**
+   * `printDocumentHtml(html, title)` — เครื่องมือหลัก เปิด iframe ซ่อนและ print A4
+   * `getKtbLogoSvg(size)` — โลโก้ กทบ. แบบ SVG (3 บล็อกสีดำ ตัว ก ท บ)
+   * `toThaiDigits(val)` — แปลงตัวเลขอารบิกเป็นตัวเลขไทย
+   * `getThaiDateParts(dStr)` — แยกวัน/เดือน/ปีพ.ศ. เป็นตัวเลขไทย
+   * `parseAddressParts(addrStr)` — แยกบ้านเลขที่/หมู่/ตำบล
+   * `printOfficialAnnualReport(year)` — รายงานสรุปประจำปี A4 ทางการ 2 ส่วน (ตาราง + ปัจจัยการผลิต)
+   * `printOfficialMemberRoster(year)` — ทะเบียนสมาชิกประจำปี A4 พร้อมลายเซ็น 3 ตำแหน่ง
+   * `printOfficialIndividualMember(memberId)` — รายงานรายบุคคล A4 พร้อมตารางประวัติ
+   * `printOfficialFinancialReport(year)` — รายงานงบการเงิน A4 ทางการ
+   * `printReportSection(elementId, title)` — Dispatcher เรียก Official Print ตาม tab ที่ active
+   * แบบฟอร์มสัญญา/คำขอ ใน `generateFormHtml(type, d)` ยังใช้รูปแบบ **เดิม** ที่ดีอยู่แล้ว (contract, guarantor, proposal)
+
+---
+
+## 5b. งานที่ยังไม่ได้ทำ / งานต่อ (Next Session)
+
+> **โฟกัสหลัก: อัปเกรด `generateFormHtml` ใน `assets/js/main.js` ให้ตรงกับภาพตัวอย่างในโฟลเดอร์ `Doc/pic/`**
+
+### ภาพตัวอย่างแบบฟอร์มที่มี (D:\Work\Project\Doc\pic\):
+- `สัญญากู้ยืมเงิน-1.jpg` → หน้า 1 ของ **แบบ กทบ.๐๔** (สัญญากู้ยืมเงิน)
+- `สัญญากู้ยืมเงิน-2.jpg` → หน้า 2 ของ **แบบ กทบ.๐๔**
+- `สัญญาค้ำประกัน.jpg` → **แบบ กทบ.๐๕** (สัญญาค้ำประกันการกู้ยืมเงิน)
+- `คำรับรองและยินยอมของคู่สมรส.jpg` → **แบบ กทบ.๐๓**
+
+### สิ่งที่ต้องทำในงานต่อไป:
+1. **อัปเดต `generateFormHtml(type, d)` (บรรทัด ~1924 ใน main.js):**
+   - ปัจจุบันใช้รูปแบบ CSS class แบบเก่า (`doc-header`, `doc-clause`) — ต้องเปลี่ยนให้ใช้รูปแบบ **ทางการ กทบ.** จากภาพตัวอย่าง
+   - เพิ่ม option `all_in_one` ในทุก `<select>` ของ `form-sel-type` และ modal ให้พิมพ์ชุดครบเซ็ต (กทบ.๐๔ + กทบ.๐๕ + กทบ.๐๓)
+   - เพิ่ม option `spouse` สำหรับ กทบ.๐๓
+   - **กทบ.๐๔ (contract):** 2 หน้า — มีลายเซ็นข้างกระดาษ (marginal) ทุกหน้า, ข้อ ๑-๗, ตารางรายการสินค้า, ตารางงวดชำระ, ลายเซ็น 3 ชุด (ผู้กู้, ผู้ให้กู้ประธาน+กรรมการ, พยาน 2 คน)
+   - **กทบ.๐๕ (guarantor):** 1 หน้า — ข้อ ๑-๒, ผู้ค้ำ 2 คน, ผู้ให้กู้ 2 คน, พยาน 2 คน
+   - **กทบ.๐๓ (spouse):** 1 หน้า — คำรับรองยินยอมคู่สมรส, ลายเซ็นคู่สมรส + พยาน 2 คน
+   - **กทบ.๐๑/๐๒ (proposal):** แบบคำขอ — ใช้รูปแบบใกล้เคียงกับของเดิม แต่เพิ่มหัวโลโก้ กทบ.
+
+2. **อัปเดต Dropdown ใน `renderFormsReport` และ `printOfficialFormModal`:**
+   ```
+   all_in_one → ⭐ พิมพ์ชุดสัญญาครบเซ็ต (กทบ.๐๔+๐๕+๐๓)
+   contract   → ๑. สัญญากู้ยืมเงิน (แบบ กทบ.๐๔ ๒ หน้า)
+   guarantor  → ๒. สัญญาค้ำประกัน (แบบ กทบ.๐๕)
+   spouse     → ๓. คำรับรองยินยอมคู่สมรส (แบบ กทบ.๐๓)
+   proposal   → ๔. แบบคำขอกู้ยืม (กทบ.๐๑/๐๒)
+   ```
+
+3. **ทดสอบ** ใน `http://localhost:3000` → ไปที่รายงาน → แบบฟอร์มพิมพ์เอกสาร → เลือกคำขอ → กดพิมพ์
+4. **Commit** หลังทำ generateFormHtml เสร็จ
 
 ---
 
