@@ -1073,8 +1073,18 @@ async function printOfficialIndividualMember(memberId){
 async function printOfficialFinancialReport(year){
   const r = await api(`api/reports.php?action=financial_summary&year=${year}`);
   if (!r) return toast('ไม่สามารถโหลดข้อมูลการเงินได้', 'error');
-  const inc = r.income_statement || {};
-  const bal = r.balance_sheet || {};
+  const loans = r.loans || {};
+  const ledger = r.ledger || {};
+  const inc = {
+    total_income:  ledger.income   || 0,
+    total_expense: ledger.expense  || 0,
+    net_income:    ledger.balance  || 0,
+  };
+  const bal = {
+    net_cash:              ledger.balance           || 0,
+    total_loan_receivable: loans.total_outstanding  || 0,
+    total_assets:          (ledger.balance || 0) + (loans.total_outstanding || 0),
+  };
   const dt = getThaiDateParts();
 
   const html = `
