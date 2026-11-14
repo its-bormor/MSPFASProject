@@ -33,3 +33,4 @@ jobs:
             **/Dockerfile
             **/.dockerignore
             **/i.catalog_item_id
+            **/config/runtime.php
