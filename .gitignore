@@ -1,6 +1,7 @@
 # Local/runtime
 config/.env
 config/.env.infinityfree
+config/runtime.php
 
 *.log
 .DS_Store
