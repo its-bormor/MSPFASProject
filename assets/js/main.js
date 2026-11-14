@@ -62,11 +62,160 @@ async function myRequests(c){const member=state.stationMember||state.user;const 
 async function requestDetail(id){const r=await api('api/requests.php?action=detail&id='+id);if(!r)return;const x=r.data;openModal('รายละเอียดคำขอ #'+x.id,`<div class="grid grid-2"><div><div class="small text-muted">สมาชิก</div><strong>${esc(x.member_name)}</strong></div><div><div class="small text-muted">ยอดคำขอ</div><strong>${money(x.amount_requested)} บาท</strong></div></div><div class="section-title">สถานะ</div>${timeline(x)}<div class="section-title">รายการ</div><div class="table-wrap"><table class="table"><thead><tr><th>รายการ</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>${(x.items||[]).map(i=>`<tr><td>${esc(i.item_name_snapshot)}</td><td>${i.quantity} ${esc(i.unit_snapshot)}</td><td>${money(i.unit_price_snapshot)}</td><td>${money(i.line_total)}</td></tr>`).join('')}</tbody></table></div><div class="section-title">ผู้ค้ำประกัน</div>${(x.guarantors||[]).length?(x.guarantors||[]).map(g=>`<div class="notice">${esc(g.guarantor_no)}. ${esc(g.fullname)} · ${esc(g.national_id||'-')} · ${esc(g.phone||'-')}</div>`).join(''):empty('ไม่มีข้อมูลผู้ค้ำประกัน','people')}${x.revision_note?`<div class="alert alert-warning" style="margin-top:15px">${esc(x.revision_note)}</div>`:''}`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button><button class="btn btn-primary" onclick="printOfficialFormModal(${id})">${icon('printer')}พิมพ์แบบฟอร์ม/สัญญา</button>`)}
 async function confirmContract(id){openModal('ยืนยันสัญญาและกำหนดแผนชำระ',`<form id="contract-form"><div class="form-group"><label class="form-label">รูปแบบการชำระ</label><select class="form-select" id="pay-mode"><option value="installment">แบ่งชำระเป็นงวด</option><option value="lump_sum">ชำระเป็นก้อน</option></select></div><div class="form-grid"><div class="form-group"><label class="form-label">จำนวนงวด</label><input type="number" min="1" max="60" class="form-control" id="pay-count" value="12"></div><div class="form-group"><label class="form-label">หักเงินค้ำประกันความเสี่ยง (ถ้ามี)</label><input type="number" min="0" class="form-control" id="risk-deduction" value="0"></div></div><div class="form-group"><label class="form-label">วันครบกำหนดงวดแรก</label><input type="date" class="form-control" id="first-due" value="${new Date().toISOString().slice(0,10)}"></div><div class="notice">ระบบจะคำนวณดอกเบี้ยตามอัตรา 6% ต่อปีตามข้อมูลโครงการ และสร้างตารางงวดสำหรับติดตามการชำระ</div><button class="btn btn-primary btn-block">${icon('check2-circle')}ยืนยันสัญญา</button></form>`);$('#contract-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/requests.php?action=confirm_contract'+(state.stationMember?'&member_id='+state.stationMember.id:''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,payment_mode:$('#pay-mode').value,installment_count:$('#pay-count').value,risk_deduction:$('#risk-deduction').value,first_due_date:$('#first-due').value})});if(r){closeModal();nav('my_requests')}})}
 async function reviseRequest(id){const r=await api('api/requests.php?action=revise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,member_id:state.stationMember?.id})});if(r){toast(r.message);nav('my_requests')}}
-async function requests(c){const r=await api('api/requests.php?action=list');state.requests=r?.data||[];c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">คำขอที่อยู่ระหว่างดำเนินการ</h2><p class="card-subtitle">คณะกรรมการตรวจสอบก่อนส่งต่อให้ประธาน</p></div></div>${state.requests.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>ยอด</th><th>สถานะ</th><th>วันที่</th><th></th></tr></thead><tbody>${state.requests.map(x=>`<tr><td><strong>${esc(x.fullname)}</strong><div class="small text-muted">${esc(x.username||'')}</div></td><td>${money(x.amount_requested)}</td><td>${badge(x.status)}</td><td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td><td><button class="btn btn-secondary btn-sm" onclick="committeeRequest(${x.id})">${icon('eye')}${['submitted','committee_review'].includes(x.status)?'ตรวจสอบ':'ดูรายละเอียด'}</button></td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีคำขอที่ต้องดำเนินการ','clipboard')}</div>`}
-async function committeeRequest(id){const r=await api('api/requests.php?action=detail&id='+id);if(!r)return;const x=r.data;openModal('ตรวจสอบคำขอ #'+id,`<div class="grid grid-2"><div><div class="small text-muted">สมาชิก</div><strong>${esc(x.member_name)}</strong></div><div><div class="small text-muted">ยอดคำขอ</div><strong>${money(x.amount_requested)} บาท</strong></div></div><div class="section-title">รายการ</div>${(x.items||[]).map(i=>`<div class="receipt-row"><span>${esc(i.item_name_snapshot)} × ${i.quantity}</span><strong>${money(i.line_total)}</strong></div>`).join('')}<div class="section-title">ผู้ค้ำประกัน</div>${(x.guarantors||[]).map(g=>`<div class="notice">${esc(g.guarantor_no)}. ${esc(g.fullname)} · ${esc(g.national_id||'-')}</div>`).join('')||empty('ไม่มีข้อมูล','people')}${['submitted','committee_review'].includes(x.status)?`<div class="section-title">หมายเหตุการพิจารณา</div><textarea id="decision-note" class="form-control" placeholder="ระบุหมายเหตุถ้าต้องการ"></textarea>`:''}` ,`${['submitted','committee_review'].includes(x.status)?`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button><button class="btn btn-warning" onclick="committeeDecision(${id},'revision')">${icon('arrow-return-left')}ส่งกลับแก้ไข</button><button class="btn btn-primary" onclick="committeeDecision(${id},'approve')">${icon('arrow-right-circle')}ผ่านและส่งประธาน</button>`:`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>`}`)}
+async function requests(c){
+  const r = await api('api/requests.php?action=list');
+  state.requests = r?.data || [];
+  c.innerHTML = `<div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">คำขอที่อยู่ระหว่างดำเนินการ</h2>
+        <p class="card-subtitle">คณะกรรมการตรวจสอบก่อนส่งต่อให้ประธาน และพิมพ์สัญญาสำหรับคำขอที่อนุมัติแล้ว</p>
+      </div>
+    </div>
+    ${state.requests.length ? `
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>สมาชิก</th>
+              <th>ยอดขอ</th>
+              <th>สถานะ</th>
+              <th>วันที่</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.requests.map(x => `
+              <tr>
+                <td><strong>${esc(x.fullname)}</strong><div class="small text-muted">${esc(x.username || '')}</div></td>
+                <td>${money(x.amount_requested)}</td>
+                <td>${badge(x.status)}</td>
+                <td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td>
+                <td>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    ${['contract_pending','member_confirmed','active','completed'].includes(x.status) ? `
+                      <button class="btn btn-primary btn-sm" onclick="printOfficialFormModal(${x.id})">${icon('printer')} พิมพ์สัญญาให้เซ็น</button>
+                    ` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="committeeRequest(${x.id})">${icon('eye')} ${['submitted','committee_review'].includes(x.status) ? 'ตรวจสอบ' : 'ดูรายละเอียด'}</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : empty('ไม่มีคำขอที่ต้องดำเนินการ', 'clipboard')}
+  </div>`;
+}
+async function committeeRequest(id){
+  const r = await api('api/requests.php?action=detail&id=' + id);
+  if (!r) return;
+  const x = r.data;
+  openModal('ตรวจสอบคำขอ #' + id, `
+    <div class="grid grid-2">
+      <div><div class="small text-muted">สมาชิก</div><strong>${esc(x.member_name)}</strong></div>
+      <div><div class="small text-muted">ยอดคำขอ</div><strong>${money(x.amount_requested)} บาท</strong></div>
+    </div>
+    <div class="section-title">รายการปัจจัยการผลิตที่ยื่นขอ</div>
+    ${(x.items || []).map(i => `
+      <div class="receipt-row">
+        <span>${esc(i.item_name_snapshot)} × ${i.quantity} ${esc(i.unit_snapshot || '')}</span>
+        <strong>${money(i.line_total)}</strong>
+      </div>
+    `).join('')}
+    <div class="section-title">ผู้ค้ำประกัน</div>
+    ${(x.guarantors || []).map(g => `
+      <div class="notice" style="margin-bottom:6px">
+        ${esc(g.guarantor_no)}. <strong>${esc(g.fullname)}</strong> · เลขบัตร: ${esc(g.national_id || '-')} · โทร: ${esc(g.phone || '-')}
+      </div>
+    `).join('') || empty('ไม่มีข้อมูลผู้ค้ำประกัน', 'people')}
+    ${['submitted','committee_review'].includes(x.status) ? `
+      <div class="section-title">หมายเหตุการพิจารณา</div>
+      <textarea id="decision-note" class="form-control" placeholder="ระบุหมายเหตุถ้าต้องการ"></textarea>
+    ` : ''}
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">ปิด</button>
+    ${['contract_pending','member_confirmed','active','completed'].includes(x.status) ? `
+      <button class="btn btn-primary" onclick="printOfficialFormModal(${id})">${icon('printer')} พิมพ์ชุดเอกสารสัญญาให้เซ็น</button>
+    ` : ''}
+    ${['submitted','committee_review'].includes(x.status) ? `
+      <button class="btn btn-warning" onclick="committeeDecision(${id},'revision')">${icon('arrow-return-left')} ส่งกลับแก้ไข</button>
+      <button class="btn btn-primary" onclick="committeeDecision(${id},'approve')">${icon('arrow-right-circle')} ผ่านและส่งประธาน</button>
+    ` : ''}
+  `);
+}
 async function committeeDecision(id,d){const r=await api('api/requests.php?action=committee_decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,decision:d==='approve'?'approve':'revision',note:$('#decision-note')?.value||''})});if(r){closeModal();nav('requests')}}
-async function approvals(c){const r=await api('api/requests.php?action=list&status=president_review');state.requests=r?.data||[];c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">คำขอรอประธานพิจารณา</h2><p class="card-subtitle">พิจารณาหลังจากคณะกรรมการกลั่นกรองแล้ว</p></div></div>${state.requests.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>ยอด</th><th>วัตถุประสงค์</th><th>วันที่</th><th></th></tr></thead><tbody>${state.requests.map(x=>`<tr><td>${esc(x.fullname)}</td><td>${money(x.amount_requested)}</td><td>${esc(x.purpose)}</td><td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td><td><button class="btn btn-primary btn-sm" onclick="presidentRequest(${x.id})">${icon('file-earmark-check')}พิจารณา</button></td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีคำขอรอพิจารณา','file-earmark-check')}</div>`}
-async function presidentRequest(id){const r=await api('api/requests.php?action=detail&id='+id);if(!r)return;const x=r.data;openModal('พิจารณาคำขอ #'+id,`<div class="notice">สมาชิก <strong>${esc(x.member_name)}</strong> ขอวงเงิน ${money(x.amount_requested)} บาท</div><div class="section-title">รายการ</div>${(x.items||[]).map(i=>`<div class="receipt-row"><span>${esc(i.item_name_snapshot)} × ${i.quantity}</span><strong>${money(i.line_total)}</strong></div>`).join('')}<div class="section-title">หมายเหตุประธาน</div><textarea id="pres-note" class="form-control" placeholder="บันทึกเหตุผลหรือข้อสังเกต"></textarea>`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button><button class="btn btn-warning" onclick="presidentDecision(${id},'reject')">${icon('arrow-return-left')}ส่งกลับแก้ไข</button><button class="btn btn-primary" onclick="presidentDecision(${id},'approve')">${icon('check2-circle')}อนุมัติ</button>`)}
+async function approvals(c){
+  const r = await api('api/requests.php?action=list&status=president_review');
+  state.requests = r?.data || [];
+  c.innerHTML = `<div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">คำขอรอประธานพิจารณาอนุมัติ</h2>
+        <p class="card-subtitle">พิจารณาหลังจากคณะกรรมการกลั่นกรองแล้ว สามารถดูสัญญาและอนุมัติสัญญาได้ทันที</p>
+      </div>
+    </div>
+    ${state.requests.length ? `
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>สมาชิก</th>
+              <th>ยอดเงิน</th>
+              <th>วัตถุประสงค์</th>
+              <th>วันที่ยื่น</th>
+              <th>การดำเนินการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.requests.map(x => `
+              <tr>
+                <td><strong>${esc(x.fullname)}</strong><div class="small text-muted">${esc(x.username || '')}</div></td>
+                <td>${money(x.amount_requested)}</td>
+                <td>${esc(x.purpose)}</td>
+                <td>${new Date(x.created_at).toLocaleDateString('th-TH')}</td>
+                <td>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-sm" onclick="presidentRequest(${x.id})">${icon('file-earmark-check')} พิจารณา</button>
+                    <button class="btn btn-secondary btn-sm" onclick="printOfficialFormModal(${x.id})">${icon('printer')} ดูร่างสัญญา</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : empty('ไม่มีคำขอรอพิจารณา', 'file-earmark-check')}
+  </div>`;
+}
+async function presidentRequest(id){
+  const r = await api('api/requests.php?action=detail&id=' + id);
+  if (!r) return;
+  const x = r.data;
+  openModal('พิจารณาคำขอ #' + id, `
+    <div class="notice">สมาชิก <strong>${esc(x.member_name)}</strong> ขอวงเงิน <strong>${money(x.amount_requested)} บาท</strong> (โครงการประชารัฐ)</div>
+    <div class="section-title">รายการปัจจัยการผลิต</div>
+    ${(x.items || []).map(i => `
+      <div class="receipt-row">
+        <span>${esc(i.item_name_snapshot)} × ${i.quantity}</span>
+        <strong>${money(i.line_total)}</strong>
+      </div>
+    `).join('')}
+    <div class="section-title">ผู้ค้ำประกัน</div>
+    ${(x.guarantors || []).map(g => `
+      <div class="notice" style="margin-bottom:6px">
+        ${esc(g.guarantor_no)}. <strong>${esc(g.fullname)}</strong> · เลขบัตร: ${esc(g.national_id || '-')} · โทร: ${esc(g.phone || '-')}
+      </div>
+    `).join('') || empty('ไม่มีข้อมูลผู้ค้ำประกัน', 'people')}
+    <div class="section-title">หมายเหตุประธาน</div>
+    <textarea id="pres-note" class="form-control" placeholder="บันทึกข้อสังเกตหรือคำสั่งอนุมัติ"></textarea>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">ปิด</button>
+    <button class="btn btn-secondary" onclick="printOfficialFormModal(${id})">${icon('printer')} พิมพ์ร่างสัญญา</button>
+    <button class="btn btn-warning" onclick="presidentDecision(${id},'reject')">${icon('arrow-return-left')} ส่งกลับแก้ไข</button>
+    <button class="btn btn-primary" onclick="presidentDecision(${id},'approve')">${icon('check2-circle')} อนุมัติคำขอ</button>
+  `);
+}
 async function presidentDecision(id,d){const r=await api('api/requests.php?action=president_decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,decision:d,note:$('#pres-note')?.value||''})});if(r){closeModal();nav('approvals')}}
 async function receivingInspection(batchId){const r=await api('api/procurement.php?action=receiving_detail&batch_id='+batchId);if(!r)return;const b=r.data;openModal('ตรวจรับสินค้าจากการจัดซื้อ',`<div class="notice"><strong>${esc(b.title)}</strong><br>รอบ ${esc(b.batch_no)} · ตรวจสอบของจริงก่อนรับเข้ากองทุน</div><div class="table-wrap mobile-stack-table receiving-inspection-table"><table class="table"><thead><tr><th>สินค้า</th><th>จำนวนตามสั่ง</th><th>จำนวนที่ตรวจนับ</th><th>สภาพ</th></tr></thead><tbody>${b.items.map(i=>`<tr><td>${esc(i.item_name_snapshot)}</td><td data-expected="${i.quantity_ordered}">${money(i.quantity_ordered)} ${esc(i.unit_snapshot)}</td><td><input class="form-control recv-count" data-id="${i.id}" value="${i.quantity_counted||i.quantity_ordered}" type="number" min="0" step="0.01"></td><td><select class="form-control recv-condition" data-id="${i.id}"><option value="good" ${i.condition_status==='good'?'selected':''}>ปกติ</option><option value="damaged" ${i.condition_status==='damaged'?'selected':''}>ชำรุด</option><option value="short" ${i.condition_status==='short'?'selected':''}>จำนวนไม่ครบ</option><option value="wrong_item" ${i.condition_status==='wrong_item'?'selected':''}>รายการไม่ตรง</option></select></td></tr>`).join('')}</tbody></table></div><div class="form-group"><label class="form-label">หมายเหตุการตรวจรับ</label><textarea class="form-control" id="receiving-note" rows="3" placeholder="ระบุปัญหาหรือรายละเอียดเพิ่มเติมถ้ามี"></textarea></div>`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button><button class="btn btn-primary" onclick="submitReceivingInspection(${batchId})">${icon('clipboard-check')}บันทึกผลตรวจรับ</button>`)}
 async function submitReceivingInspection(batchId){const items=[...document.querySelectorAll('.recv-count')].map(x=>{const id=x.dataset.id;return{batch_item_id:Number(id),quantity_expected:Number(x.closest('tr').querySelector('td[data-expected]').dataset.expected),quantity_counted:Number(x.value),condition_status:document.querySelector('.recv-condition[data-id="'+id+'"]').value}});const r=await api('api/procurement.php?action=inspect_receiving',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batch_id:batchId,items,received_note:$('#receiving-note')?.value||''})});if(r){closeModal();toast(r.message||'บันทึกผลตรวจรับแล้ว','success');nav('procurement')}}
@@ -368,99 +517,145 @@ function printDocumentHtml(contentHtml, title = 'พิมพ์แบบฟอ�
       background: #fff;
       margin: 0;
       padding: 0;
-      font-size: 13pt;
-      line-height: 1.6;
+      font-size: 13.5pt;
+      line-height: 1.65;
     }
     .print-doc {
       width: 100%;
       margin: 0 auto;
       padding: 0;
     }
-    .doc-header {
-      text-align: center;
-      margin-bottom: 18px;
-      border-bottom: 2px solid #000;
-      padding-bottom: 12px;
+    .page-container {
+      position: relative;
+      min-height: 250mm;
+      page-break-after: always;
+      box-sizing: border-box;
     }
-    .doc-title {
-      font-size: 16pt;
-      font-weight: 800;
-      margin: 0 0 4px 0;
-      line-height: 1.3;
+    .page-container:last-child {
+      page-break-after: avoid;
     }
-    .doc-subtitle {
-      font-size: 12.5pt;
-      font-weight: 600;
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+      height: 0;
       margin: 0;
-      color: #222;
+      padding: 0;
     }
-    .doc-meta-row {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 10px;
+    .ktb-form-code {
+      text-align: right;
       font-size: 11pt;
-    }
-    .doc-body {
-      margin: 14px 0;
-    }
-    .doc-clause {
-      text-indent: 32px;
-      margin-bottom: 9px;
-      text-align: justify;
-    }
-    .doc-fill {
       font-weight: 700;
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      padding: 0 2px;
+      margin-bottom: 2px;
     }
-    .doc-table {
+    .ktb-title {
+      text-align: center;
+      font-size: 16.5pt;
+      font-weight: 800;
+      margin: 4px 0 10px 0;
+    }
+    .ktb-header-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 12px 0;
-      font-size: 11pt;
+      margin-bottom: 8px;
     }
-    .doc-table th, .doc-table td {
+    .ktb-header-table td {
+      border: 0 !important;
+      padding: 2px 0;
+      font-size: 13pt;
+    }
+    .doc-p {
+      text-indent: 2.8rem;
+      text-align: justify;
+      margin-bottom: 8px;
+      font-size: 13.5pt;
+      line-height: 1.65;
+    }
+    .doc-fill {
+      border-bottom: 1px dotted #000;
+      padding: 0 4px;
+      font-weight: 600;
+      display: inline;
+    }
+    .marginal-sign {
+      position: absolute;
+      right: -8mm;
+      top: 48%;
+      transform: rotate(90deg);
+      transform-origin: right top;
+      font-size: 8.5pt;
+      color: #333;
+      white-space: nowrap;
+    }
+    .sig-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+      page-break-inside: avoid;
+    }
+    .sig-table td {
+      border: 0 !important;
+      text-align: center;
+      vertical-align: top;
+      padding: 8px 4px;
+      font-size: 12.5pt;
+      line-height: 1.5;
+    }
+    .official-report-header {
+      text-align: center;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 10px;
+    }
+    .official-report-title {
+      font-size: 16pt;
+      font-weight: 800;
+      margin: 4px 0 2px 0;
+    }
+    .official-report-sub {
+      font-size: 12.5pt;
+      color: #222;
+      font-weight: 600;
+    }
+    .no-print, button, .toolbar, .btn, input, select {
+      display: none !important;
+    }
+    table.doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11pt;
+      margin: 12px 0;
+    }
+    table.doc-table th, table.doc-table td {
       border: 1px solid #000;
       padding: 6px 8px;
     }
-    .doc-table th {
+    table.doc-table th {
       background: #f2f2f2;
       font-weight: 700;
       text-align: center;
     }
-    .doc-signatures {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px 20px;
-      margin-top: 24px;
-      page-break-inside: avoid;
-    }
-    .sig-box {
-      text-align: center;
-      padding: 4px;
-    }
-    .sig-line {
-      margin-top: 30px;
-      border-bottom: 1px dotted #000;
-      width: 82%;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .sig-name {
-      margin-top: 5px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 11pt;
+      margin: 12px 0;
     }
-    .sig-role {
-      font-size: 10pt;
-      color: #333;
-    }
-    .official-box {
+    table th, table td {
       border: 1px solid #000;
-      padding: 10px 14px;
-      margin-top: 18px;
+      padding: 6px 8px;
+    }
+    table th {
+      background: #f2f2f2;
+      font-weight: 700;
+      text-align: center;
+    }
+    .badge {
+      border: 1px solid #333;
+      padding: 1px 6px;
       border-radius: 4px;
-      page-break-inside: avoid;
+      font-size: 9.5pt;
+      font-weight: 600;
+      display: inline-block;
     }
     .receipt {
       border: 2px solid #000;
@@ -485,32 +680,6 @@ function printDocumentHtml(contentHtml, title = 'พิมพ์แบบฟอ�
     .receipt-row:last-child {
       border-bottom: 0;
     }
-    .no-print, button, .toolbar, .btn, input, select {
-      display: none !important;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11pt;
-      margin: 12px 0;
-    }
-    table th, table td {
-      border: 1px solid #333;
-      padding: 6px 8px;
-    }
-    table th {
-      background: #f2f2f2;
-      font-weight: 700;
-      text-align: center;
-    }
-    .badge {
-      border: 1px solid #555;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 9.5pt;
-      font-weight: 600;
-      display: inline-block;
-    }
   </style>
 </head>
 <body>
@@ -525,7 +694,486 @@ function printDocumentHtml(contentHtml, title = 'พิมพ์แบบฟอ�
   }, 400);
 }
 
-function printReportSection(elementId, title = 'รายงาน'){
+function getKtbLogoSvg(size = 56){
+  return `<svg width="${size}" height="${Math.round(size*0.82)}" viewBox="0 0 60 50" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 6px auto;">
+    <rect x="7" y="2" width="12" height="6" fill="#000" rx="1"/>
+    <rect x="24" y="2" width="12" height="6" fill="#000" rx="1"/>
+    <rect x="41" y="2" width="12" height="6" fill="#000" rx="1"/>
+    <rect x="7" y="10" width="12" height="26" fill="#000" rx="1"/>
+    <text x="13" y="29" fill="#fff" font-family="'Sarabun', sans-serif" font-weight="900" font-size="16" text-anchor="middle">ก</text>
+    <rect x="24" y="10" width="12" height="26" fill="#000" rx="1"/>
+    <text x="30" y="29" fill="#fff" font-family="'Sarabun', sans-serif" font-weight="900" font-size="16" text-anchor="middle">ท</text>
+    <rect x="41" y="10" width="12" height="26" fill="#000" rx="1"/>
+    <text x="47" y="29" fill="#fff" font-family="'Sarabun', sans-serif" font-weight="900" font-size="16" text-anchor="middle">บ</text>
+    <rect x="7" y="38" width="12" height="6" fill="#000" rx="1"/>
+    <rect x="24" y="38" width="12" height="6" fill="#000" rx="1"/>
+    <rect x="41" y="38" width="12" height="6" fill="#000" rx="1"/>
+  </svg>`;
+}
+
+function toThaiDigits(val){
+  const arabic = ['0','1','2','3','4','5','6','7','8','9'];
+  const thai = ['๐','๑','๒','๓','๔','๕','๖','๗','๘','๙'];
+  let str = String(val ?? '');
+  for (let i = 0; i < 10; i++) {
+    str = str.replaceAll(arabic[i], thai[i]);
+  }
+  return str;
+}
+
+function getThaiDateParts(dStr){
+  const d = dStr ? new Date(dStr) : new Date();
+  const thMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const day = d.getDate();
+  const month = thMonths[d.getMonth()];
+  const year = d.getFullYear() + 543;
+  return {
+    day: toThaiDigits(day),
+    month,
+    year: toThaiDigits(year),
+    full: `${toThaiDigits(day)} เดือน ${month} พ.ศ. ${toThaiDigits(year)}`
+  };
+}
+
+function parseAddressParts(addrStr){
+  const str = addrStr || '';
+  let no = '', moo = '', sub = 'แม่ยางตาล', dist = 'ร้องกวาง', prov = 'แพร่';
+  const mNo = str.match(/(\d+[\d\/]*)/);
+  if (mNo) no = mNo[1];
+  const mMoo = str.match(/หมู่(?:\s*ที่)?\s*(\d+)/);
+  if (mMoo) moo = mMoo[1];
+  return {
+    no: no ? toThaiDigits(no) : '๑๒',
+    moo: moo ? toThaiDigits(moo) : '๕',
+    sub,
+    dist,
+    prov
+  };
+}
+
+async function printOfficialAnnualReport(year){
+  const r = await api(`api/reports.php?action=annual&year=${year}`);
+  if (!r) return toast('ไม่สามารถโหลดข้อมูลรายงานได้', 'error');
+  const dt = getThaiDateParts();
+  const cats = (r.by_category || []).map(x => ({
+    label: x.category === 'fertilizer' ? 'ปุ๋ยเคมีและปุ๋ยอินทรีย์' : x.category === 'medicine' ? 'สารเคมีและเวชภัณฑ์ทางการเกษตร' : x.category === 'seed' ? 'เมล็ดพันธุ์พืช' : 'อุปกรณ์และปัจจัยการผลิตอื่น ๆ',
+    amount: Number(x.amount) || 0,
+    qty: Number(x.quantity) || 0
+  }));
+
+  const html = `
+    <div class="print-doc page-container">
+      <div class="official-report-header">
+        ${getKtbLogoSvg(62)}
+        <div class="official-report-title">รายงานสรุปผลการดำเนินงานโครงการเงินกู้ยืมเพื่อการผลิต (ปุ๋ย ยา และเมล็ดพันธุ์)</div>
+        <div class="official-report-sub">กองทุนหมู่บ้านแม่ยางตาล หมู่ที่ ๕ ตำบลแม่ยางตาล อำเภอร้องกวาง จังหวัดแพร่</div>
+        <div style="font-size:11.5pt;margin-top:4px">ประจำปีงบประมาณ พ.ศ. ${toThaiDigits(year)} · ข้อมูล ณ วันที่ ${dt.full}</div>
+      </div>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:14px">ส่วนที่ ๑: สรุปภาพรวมการบริหารเงินทุนหมุนเวียนและลูกหนี้เงินกู้</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>รายการตัวชี้วัด</th>
+            <th>จำนวนราย / คำขอ</th>
+            <th>จำนวนเงิน (บาท)</th>
+            <th>หมายเหตุ / สัดส่วน</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>จำนวนสมาชิกทั้งหมดในระบบ</td>
+            <td style="text-align:center">${toThaiDigits(r.member_count)} ราย</td>
+            <td style="text-align:right">-</td>
+            <td>สมาชิกกองทุนหมู่บ้าน ม.๕</td>
+          </tr>
+          <tr>
+            <td>คำขอกู้ยืมเงินที่ยื่นในปีงบประมาณ</td>
+            <td style="text-align:center">${toThaiDigits(r.summary.total)} คำขอ</td>
+            <td style="text-align:right">${money(r.summary.requested_amount)}</td>
+            <td>รวมทุกสถานะ</td>
+          </tr>
+          <tr>
+            <td>คำขอที่ผ่านการอนุมัติและทำสัญญา</td>
+            <td style="text-align:center">${toThaiDigits(r.summary.approved || 0)} สัญญา</td>
+            <td style="text-align:right">${money(r.principal)}</td>
+            <td>เงินต้นที่ปล่อยกู้จริง</td>
+          </tr>
+          <tr>
+            <td>ประมาณการดอกเบี้ยรับตามสัญญา (๖% ต่อปี)</td>
+            <td style="text-align:center">-</td>
+            <td style="text-align:right">${money(r.interest)}</td>
+            <td>ผลตอบแทนเข้ากองทุน</td>
+          </tr>
+          <tr>
+            <td><strong>ยอดเงินต้นรวมดอกเบี้ยที่ต้องชำระคืน (ตามแผน)</strong></td>
+            <td style="text-align:center">-</td>
+            <td style="text-align:right"><strong>${money(r.payable)}</strong></td>
+            <td><strong>รวมยอดหนี้ทั้งสิ้น</strong></td>
+          </tr>
+          <tr>
+            <td><strong>ยอดเงินที่รับชำระคืนแล้วจริง</strong></td>
+            <td style="text-align:center">-</td>
+            <td style="text-align:right"><strong style="color:#000">${money(r.paid)}</strong></td>
+            <td><strong>อัตราการชำระคืน ${toThaiDigits(r.repayment_rate)}%</strong></td>
+          </tr>
+          <tr>
+            <td>ยอดลูกหนี้คงค้างตามสัญญา</td>
+            <td style="text-align:center">-</td>
+            <td style="text-align:right">${money(r.remaining)}</td>
+            <td>อยู่ระหว่างติดตามชำระ</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:16px">ส่วนที่ ๒: สรุปการจัดซื้อและส่งมอบปัจจัยการผลิตจำแนกตามประเภท</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th style="width:8%">ลำดับ</th>
+            <th>หมวดหมู่ปัจจัยการผลิต</th>
+            <th style="width:20%">ปริมาณรวม</th>
+            <th style="width:25%">มูลค่ารวม (บาท)</th>
+            <th style="width:18%">สัดส่วน (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${cats.map((c, i) => {
+            const pct = r.principal > 0 ? ((c.amount / r.principal) * 100).toFixed(1) : '0';
+            return `
+              <tr>
+                <td style="text-align:center">${toThaiDigits(i + 1)}</td>
+                <td><strong>${esc(c.label)}</strong></td>
+                <td style="text-align:center">${money(c.qty)} หน่วย</td>
+                <td style="text-align:right">${money(c.amount)}</td>
+                <td style="text-align:center">${toThaiDigits(pct)}%</td>
+              </tr>
+            `;
+          }).join('')}
+          <tr>
+            <td colspan="3" style="text-align:right;font-weight:700">รวมมูลค่าปัจจัยการผลิตทั้งสิ้น</td>
+            <td style="text-align:right;font-weight:700">${money(r.principal)}</td>
+            <td style="text-align:center;font-weight:700">๑๐๐%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:16px">ส่วนที่ ๓: สถานะบัญชีรายรับ-รายจ่ายของกองทุน (ปีงบประมาณ ${toThaiDigits(year)})</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>ประเภทบัญชี</th>
+            <th>จำนวนเงิน (บาท)</th>
+            <th>หมายเหตุ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(r.ledger || []).map(l => `
+            <tr>
+              <td>${l.type === 'income' ? 'รายรับรวมโครงการ' : 'รายจ่ายรวมโครงการ'}</td>
+              <td style="text-align:right">${money(l.amount)}</td>
+              <td>${l.type === 'income' ? 'เงินจัดสรรรัฐบาล ค่าธรรมเนียม ดอกเบี้ยรับ' : 'ค่าจัดซื้อปัจจัยการผลิตและบริหารงาน'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <table class="sig-table" style="margin-top:40px">
+        <tr>
+          <td style="width:33.3%">
+            ลงชื่อ............................................................ผู้จัดทำรายงาน<br>
+            ( นายประสิทธิ์ มงคลสุข )<br>
+            ตำแหน่ง เหรัญญิกกองทุนหมู่บ้าน
+          </td>
+          <td style="width:33.3%">
+            ลงชื่อ............................................................ผู้ตรวจสอบรายงาน<br>
+            ( นางอำไพ แก้วทอง )<br>
+            ตำแหน่ง ประธานฝ่ายตรวจสอบ
+          </td>
+          <td style="width:33.3%">
+            ลงชื่อ............................................................ผู้รับรองรายงาน<br>
+            ( นายสมเกียรติ ยางตาล )<br>
+            ตำแหน่ง ประธานกองทุนหมู่บ้าน
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+  printDocumentHtml(html, `รายงานสรุปประจำปี ${year}`);
+}
+
+async function printOfficialMemberRoster(year){
+  const r = await api(`api/reports.php?action=member_annual_list&year=${year}`);
+  const list = r?.data || [];
+  const dt = getThaiDateParts();
+
+  const html = `
+    <div class="print-doc page-container">
+      <div class="official-report-header">
+        ${getKtbLogoSvg(62)}
+        <div class="official-report-title">ทะเบียนสมาชิกและการกู้ยืมเงินทุนหมุนเวียน</div>
+        <div class="official-report-sub">กองทุนหมู่บ้านแม่ยางตาล หมู่ที่ ๕ ตำบลแม่ยางตาล อำเภอร้องกวาง จังหวัดแพร่</div>
+        <div style="font-size:11.5pt;margin-top:4px">ประจำปีงบประมาณ พ.ศ. ${toThaiDigits(year)} · สมาชิกทั้งหมด ${toThaiDigits(list.length)} ราย · ข้อมูล ณ วันที่ ${dt.full}</div>
+      </div>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th style="width:6%">ลำดับ</th>
+            <th style="width:12%">รหัสสมาชิก</th>
+            <th>ชื่อ-นามสกุล สมาชิก</th>
+            <th style="width:18%">เลขประจำตัวประชาชน</th>
+            <th style="width:15%">วงเงินกู้ยืม (บาท)</th>
+            <th style="width:15%">ชำระคืนแล้ว (บาท)</th>
+            <th style="width:15%">หนี้คงค้าง (บาท)</th>
+            <th style="width:12%">สถานะคำขอ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((m, i) => `
+            <tr>
+              <td style="text-align:center">${toThaiDigits(i + 1)}</td>
+              <td style="text-align:center">${esc(m.username)}</td>
+              <td><strong>${esc(m.fullname)}</strong></td>
+              <td style="text-align:center">${esc(m.national_id || '-')}</td>
+              <td style="text-align:right">${money(m.amount_requested)}</td>
+              <td style="text-align:right">${money(m.total_paid)}</td>
+              <td style="text-align:right">${money(m.remaining_debt)}</td>
+              <td style="text-align:center">${esc(statusMap[m.request_status]?.[0] || 'ยังไม่ยื่น')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <table class="sig-table" style="margin-top:35px">
+        <tr>
+          <td style="width:50%">
+            ลงชื่อ............................................................นายทะเบียนสมาชิก<br>
+            ( นางอำไพ แก้วทอง )<br>
+            ตำแหน่ง กรรมการและนายทะเบียน
+          </td>
+          <td style="width:50%">
+            ลงชื่อ............................................................ผู้รับรองทะเบียน<br>
+            ( นายสมเกียรติ ยางตาล )<br>
+            ตำแหน่ง ประธานกองทุนหมู่บ้าน
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+  printDocumentHtml(html, `ทะเบียนสมาชิกประจำปี ${year}`);
+}
+
+async function printOfficialIndividualMember(memberId){
+  if (!memberId) return toast('กรุณาเลือกสมาชิก', 'error');
+  const r = await api(`api/reports.php?action=member_detail&member_id=${memberId}`);
+  if (!r || !r.member) return toast('ไม่สามารถโหลดข้อมูลสมาชิกได้', 'error');
+  const m = r.member;
+  const s = r.summary;
+  const reqs = r.requests || [];
+  const dt = getThaiDateParts();
+
+  const html = `
+    <div class="print-doc page-container">
+      <div class="official-report-header">
+        ${getKtbLogoSvg(62)}
+        <div class="official-report-title">ประวัติสมาชิกและรายงานสถานะการกู้ยืมเงินทุนหมุนเวียนรายบุคคล</div>
+        <div class="official-report-sub">กองทุนหมู่บ้านแม่ยางตาล หมู่ที่ ๕ ตำบลแม่ยางตาล อำเภอร้องกวาง จังหวัดแพร่</div>
+        <div style="font-size:11.5pt;margin-top:4px">ข้อมูล ณ วันที่ ${dt.full}</div>
+      </div>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:10px">ข้อมูลสมาชิกทั่วไป:</div>
+      <table class="ktb-header-table" style="margin-top:6px">
+        <tr>
+          <td style="width:50%"><strong>รหัสสมาชิก:</strong> ${esc(m.username)}</td>
+          <td style="width:50%"><strong>ชื่อ-นามสกุล:</strong> ${esc(m.fullname)}</td>
+        </tr>
+        <tr>
+          <td><strong>เลขประจำตัวประชาชน:</strong> ${esc(m.national_id || '-')}</td>
+          <td><strong>เบอร์โทรศัพท์:</strong> ${esc(m.phone || '-')}</td>
+        </tr>
+        <tr>
+          <td><strong>สถานภาพสมรส:</strong> ${esc(m.marital_status)} ${m.spouse_name ? `(คู่สมรส: ${esc(m.spouse_name)})` : ''}</td>
+          <td><strong>สถานะความเสี่ยง:</strong> ${esc(m.risk_status === 'normal' ? 'ปกติ' : m.risk_status)}</td>
+        </tr>
+        <tr>
+          <td colspan="2"><strong>ที่อยู่ตามทะเบียนบ้าน:</strong> ${esc(m.address || '-')}</td>
+        </tr>
+      </table>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:14px">สรุปภาระหนี้สินและการชำระเงิน:</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>ยอดขอกู้รวม (บาท)</th>
+            <th>ยอดหนี้ตามแผน (รวมดอกเบี้ย)</th>
+            <th>ยอดที่ชำระคืนแล้ว (บาท)</th>
+            <th>หนี้คงค้างสุทธิ (บาท)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align:right"><strong>${money(s.total_requested)}</strong></td>
+            <td style="text-align:right"><strong>${money(s.total_payable)}</strong></td>
+            <td style="text-align:right"><strong style="color:#000">${money(s.total_paid)}</strong></td>
+            <td style="text-align:right"><strong>${money(s.remaining_debt)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:14px">ประวัติสัญญาและรายการปัจจัยการผลิตที่ได้รับมอบ:</div>
+      ${reqs.map(q => `
+        <div style="border:1px solid #000;padding:10px;margin-top:8px;border-radius:4px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <strong>คำขอเลขที่ #${q.id} (ปีงบประมาณ ${esc(q.year_be || '-')})</strong>
+            <span>สถานะ: <strong>${esc(statusMap[q.status]?.[0] || q.status)}</strong></span>
+          </div>
+          <table class="doc-table" style="margin:6px 0">
+            <thead>
+              <tr>
+                <th>รายการปัจจัยการผลิต</th>
+                <th>จำนวน</th>
+                <th>รวมเงิน (บาท)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(q.items || []).map(it => `
+                <tr>
+                  <td>${esc(it.item_name_snapshot)}</td>
+                  <td style="text-align:center">${it.quantity} ${esc(it.unit_snapshot)}</td>
+                  <td style="text-align:right">${money(it.line_total)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="font-size:10.5pt;margin-top:4px">
+            <strong>ผู้ค้ำประกัน:</strong> ${(q.guarantors || []).map(g => `${g.fullname} (${g.national_id || '-'})`).join(', ') || '-'}
+          </div>
+        </div>
+      `).join('') || '<div class="text-muted">ไม่มีประวัติคำขอ</div>'}
+
+      <table class="sig-table" style="margin-top:35px">
+        <tr>
+          <td style="width:50%">
+            ลงชื่อ............................................................สมาชิกผู้กู้<br>
+            ( ${esc(m.fullname)} )
+          </td>
+          <td style="width:50%">
+            ลงชื่อ............................................................ผู้รับรองข้อมูล<br>
+            ( นายประสิทธิ์ มงคลสุข )<br>
+            ตำแหน่ง เหรัญญิกกองทุนหมู่บ้าน
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+  printDocumentHtml(html, `รายงานประวัติสมาชิก ${m.fullname}`);
+}
+
+async function printOfficialFinancialReport(year){
+  const r = await api(`api/reports.php?action=financial_summary&year=${year}`);
+  if (!r) return toast('ไม่สามารถโหลดข้อมูลการเงินได้', 'error');
+  const inc = r.income_statement || {};
+  const bal = r.balance_sheet || {};
+  const dt = getThaiDateParts();
+
+  const html = `
+    <div class="print-doc page-container">
+      <div class="official-report-header">
+        ${getKtbLogoSvg(62)}
+        <div class="official-report-title">รายงานสถานะทางการเงินและบัญชีรายรับ-รายจ่าย</div>
+        <div class="official-report-sub">กองทุนหมู่บ้านแม่ยางตาล หมู่ที่ ๕ ตำบลแม่ยางตาล อำเภอร้องกวาง จังหวัดแพร่</div>
+        <div style="font-size:11.5pt;margin-top:4px">ประจำปีงบประมาณ พ.ศ. ${toThaiDigits(year)} · ข้อมูล ณ วันที่ ${dt.full}</div>
+      </div>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:12px">งบรายรับ - รายจ่ายโครงการ (Cash Flow Statement):</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>หมวดรายการ</th>
+            <th>จำนวนเงิน (บาท)</th>
+            <th>หมายเหตุ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>รายรับรวมทั้งสิ้น</strong></td>
+            <td style="text-align:right"><strong>${money(inc.total_income)}</strong></td>
+            <td>เงินจัดสรร, ค่าธรรมเนียม, ดอกเบี้ยรับ</td>
+          </tr>
+          <tr>
+            <td><strong>รายจ่ายรวมทั้งสิ้น</strong></td>
+            <td style="text-align:right"><strong>${money(inc.total_expense)}</strong></td>
+            <td>ค่าจัดซื้อปัจจัยการผลิต, เบี้ยประชุม, ค่าวัสดุ</td>
+          </tr>
+          <tr>
+            <td><strong>รายรับสุทธิ (Net Balance)</strong></td>
+            <td style="text-align:right"><strong>${money(inc.net_income)}</strong></td>
+            <td>ส่วนต่างรายรับเกินรายจ่าย</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="font-weight:700;font-size:12.5pt;margin-top:16px">งบดุลและสภาพคล่องกองทุน (Balance Sheet Overview):</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>รายการสินทรัพย์</th>
+            <th>จำนวนเงิน (บาท)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>เงินสดในมือและเงินฝากธนาคารสุทธิ</td>
+            <td style="text-align:right">${money(bal.net_cash)}</td>
+          </tr>
+          <tr>
+            <td>ลูกหนี้เงินกู้ยืมโครงการประชารัฐคงค้างสุทธิ</td>
+            <td style="text-align:right">${money(bal.total_loan_receivable)}</td>
+          </tr>
+          <tr>
+            <td><strong>รวมสินทรัพย์หมุนเวียนทั้งสิ้น</strong></td>
+            <td style="text-align:right"><strong>${money(bal.total_assets)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="sig-table" style="margin-top:40px">
+        <tr>
+          <td style="width:33.3%">
+            ลงชื่อ............................................................ผู้จัดทำงบ<br>
+            ( นายประสิทธิ์ มงคลสุข )<br>
+            ตำแหน่ง เหรัญญิกกองทุน
+          </td>
+          <td style="width:33.3%">
+            ลงชื่อ............................................................ผู้ตรวจสอบบัญชี<br>
+            ( นางอำไพ แก้วทอง )<br>
+            ตำแหน่ง ประธานฝ่ายตรวจสอบ
+          </td>
+          <td style="width:33.3%">
+            ลงชื่อ............................................................ผู้รับรองงบ<br>
+            ( นายสมเกียรติ ยางตาล )<br>
+            ตำแหน่ง ประธานกองทุนหมู่บ้าน
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+  printDocumentHtml(html, `รายงานงบการเงินปี ${year}`);
+}
+
+async function printReportSection(elementId, title = 'รายงาน'){
+  if (state.reportTab === 'annual') {
+    return printOfficialAnnualReport(state.reportYear);
+  } else if (state.reportTab === 'members') {
+    if (state.memberSubTab === 'roster') {
+      return printOfficialMemberRoster(state.reportYear);
+    } else {
+      return printOfficialIndividualMember(state.selectedReportMemberId);
+    }
+  } else if (state.reportTab === 'financial') {
+    return printOfficialFinancialReport(state.reportYear);
+  }
   const el = document.getElementById(elementId) || $('#report-tab-body');
   if (!el) return window.print();
   printDocumentHtml(el.innerHTML, title);
