@@ -1840,9 +1840,11 @@ async function renderFormsReport(container){
         </select>
         <label class="form-label" style="margin:0 0 0 10px">เลือกแบบฟอร์ม:</label>
         <select class="form-select" id="form-sel-type" style="max-width:280px" onchange="previewOfficialForm()">
-          <option value="contract">๑. สัญญากู้ยืมเงินโครงการประชารัฐ</option>
-          <option value="guarantor">๒. สัญญาค้ำประกันเงินกู้</option>
-          <option value="proposal">๓. แบบคำขอกู้ยืมเงิน / ปัจจัยการผลิต (กทบ.๐๑/๐๒)</option>
+          <option value="all_in_one">⭐ พิมพ์ชุดสัญญาครบเซ็ต (กทบ.๐๔+๐๕+๐๓)</option>
+          <option value="contract">๑. สัญญากู้ยืมเงิน (แบบ กทบ.๐๔ ๒ หน้า)</option>
+          <option value="guarantor">๒. สัญญาค้ำประกัน (แบบ กทบ.๐๕)</option>
+          <option value="spouse">๓. คำรับรองยินยอมคู่สมรส (แบบ กทบ.๐๓)</option>
+          <option value="proposal">๔. แบบคำขอกู้ยืม (กทบ.๐๑/๐๒)</option>
         </select>
       </div>
       <button class="btn btn-primary" type="button" onclick="printCurrentReportForm()">${icon('printer')} พิมพ์เอกสารนี้ (Print A4)</button>
@@ -1877,7 +1879,7 @@ function printCurrentReportForm(){
   const mount = $('#form-preview-mount');
   if (!mount || !mount.firstElementChild) return toast('ไม่พบเอกสารสำหรับพิมพ์', 'error');
   const formType = $('#form-sel-type')?.value || 'contract';
-  const title = formType === 'contract' ? 'สัญญากู้ยืมเงินโครงการประชารัฐ' : formType === 'guarantor' ? 'สัญญาค้ำประกันเงินกู้' : 'แบบคำขอกู้ยืมเงิน';
+  const title = officialFormTitle(formType);
   printDocumentHtml(mount.innerHTML, title);
 }
 
@@ -1886,9 +1888,11 @@ function printOfficialFormModal(requestId){
     <div class="toolbar no-print" style="margin-bottom:14px">
       <label class="form-label" style="margin:0">เลือกแบบฟอร์ม:</label>
       <select class="form-select" id="modal-form-type" style="max-width:320px" onchange="loadModalFormPreview(${requestId})">
-        <option value="contract">๑. สัญญากู้ยืมเงินโครงการประชารัฐ</option>
-        <option value="guarantor">๒. สัญญาค้ำประกันเงินกู้</option>
-        <option value="proposal">๓. แบบคำขอกู้ยืมเงิน (กทบ.๐๑/๐๒)</option>
+        <option value="all_in_one">⭐ พิมพ์ชุดสัญญาครบเซ็ต (กทบ.๐๔+๐๕+๐๓)</option>
+        <option value="contract">๑. สัญญากู้ยืมเงิน (แบบ กทบ.๐๔ ๒ หน้า)</option>
+        <option value="guarantor">๒. สัญญาค้ำประกัน (แบบ กทบ.๐๕)</option>
+        <option value="spouse">๓. คำรับรองยินยอมคู่สมรส (แบบ กทบ.๐๓)</option>
+        <option value="proposal">๔. แบบคำขอกู้ยืม (กทบ.๐๑/๐๒)</option>
       </select>
       <button class="btn btn-primary" type="button" onclick="printModalForm()">${icon('printer')} พิมพ์เอกสาร (Print)</button>
     </div>
@@ -1904,7 +1908,7 @@ function printModalForm(){
   const mount = $('#modal-form-mount');
   if (!mount || !mount.firstElementChild) return toast('ไม่พบเอกสารสำหรับพิมพ์', 'error');
   const formType = $('#modal-form-type')?.value || 'contract';
-  const title = formType === 'contract' ? 'สัญญากู้ยืมเงินโครงการประชารัฐ' : formType === 'guarantor' ? 'สัญญาค้ำประกันเงินกู้' : 'แบบคำขอกู้ยืมเงิน';
+  const title = officialFormTitle(formType);
   printDocumentHtml(mount.innerHTML, title);
 }
 
@@ -1921,338 +1925,45 @@ async function loadModalFormPreview(requestId){
   mount.innerHTML = generateFormHtml(formType, r.form_data);
 }
 
-function generateFormHtml(type, d){
-  const req = d.request;
-  const items = d.items || [];
-  const guarantors = d.guarantors || [];
-  const plan = d.payment_plan;
-  const installments = d.installments || [];
-  const v = d.village_info;
-  const createdDate = new Date(req.created_at);
-  const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-  const thaiDate = `${createdDate.getDate()} เดือน ${thaiMonths[createdDate.getMonth()]} พ.ศ. ${createdDate.getFullYear() + 543}`;
-
-  if (type === 'contract') {
-    return `
-      <div class="print-doc">
-        <div class="doc-header">
-          <div class="doc-title">สัญญากู้ยืมเงินโครงการประชารัฐ (ปุ๋ย ยา และเมล็ดพันธุ์)</div>
-          <div class="doc-subtitle">${esc(v.full_address)}</div>
-          <div class="doc-meta-row">
-            <div><strong>สัญญาเลขที่:</strong> ${esc(req.year_be)}/${String(req.id).padStart(4,'0')}</div>
-            <div><strong>ทำขึ้นเมื่อวันที่:</strong> ${thaiDate}</div>
-          </div>
-        </div>
-
-        <div class="doc-body">
-          <div class="doc-clause">
-            สัญญานี้ทำขึ้น ณ ที่ทำการ${esc(v.name)} ระหว่าง <strong>${esc(v.name)}</strong> โดย <span class="doc-fill">${esc(d.officers.president)}</span> ตำแหน่ง ประธานกรรมการกองทุนหมู่บ้าน ซึ่งต่อไปในสัญญานี้เรียกว่า <strong>"ผู้ให้กู้"</strong> ฝ่ายหนึ่ง กับ
-          </div>
-          <div class="doc-clause">
-            <span class="doc-fill">${esc(req.fullname)}</span> รหัสสมาชิก <span class="doc-fill">${esc(req.member_code)}</span> เลขประจำตัวประชาชน <span class="doc-fill">${esc(req.national_id || '...........................................')}</span> อยู่บ้านเลขที่ <span class="doc-fill">${esc(req.address || '...........................................')}</span> โทรศัพท์ <span class="doc-fill">${esc(req.phone || '......................')}</span> สถานภาพสมรส <span class="doc-fill">${esc(req.marital_status)}</span> ${req.spouse_name ? `ชื่อคู่สมรส <span class="doc-fill">${esc(req.spouse_name)}</span>` : ''} ซึ่งต่อไปในสัญญานี้เรียกว่า <strong>"ผู้กู้"</strong> อีกฝ่ายหนึ่ง ทั้งสองฝ่ายได้ตกลงทำสัญญามีข้อความดังต่อไปนี้
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๑. วัตถุประสงค์และวงเงินกู้ยืม:</strong> ผู้กู้ได้กู้ยืมเงินทุนหมุนเวียนจากผู้ให้กู้ เพื่อนำไปจัดซื้อปัจจัยการผลิตทางการเกษตรตามโครงการประชารัฐ (ปุ๋ย ยา และเมล็ดพันธุ์) เป็นจำนวนเงินทั้งสิ้น <span class="doc-fill">${money(d.amount_num)} บาท</span> (<span class="doc-fill">${esc(d.amount_text)}</span>) ตามรายการปัจจัยการผลิตที่ระบุไว้ท้ายสัญญานี้
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๒. อัตราดอกเบี้ย:</strong> ผู้กู้ยินยอมชำระดอกเบี้ยให้แก่ผู้ให้กู้ในอัตราร้อยละ <strong>๖ (หก) ต่อปี</strong> คิดเป็นดอกเบี้ยทั้งสิ้น <span class="doc-fill">${money(plan ? plan.interest_amount : d.amount_num * 0.06)} บาท</span> รวมเป็นเงินต้นและดอกเบี้ยที่ต้องชำระคืนทั้งสิ้น <span class="doc-fill">${money(d.total_payable_num)} บาท</span> (<span class="doc-fill">${esc(d.total_payable_text)}</span>)
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๓. แผนและกำหนดเวลาชำระคืน:</strong> ผู้กู้ตกลงชำระเงินกู้ยืมและดอกเบี้ยคืนแก่ผู้ให้กู้ตามแผนการชำระเงินแบบ <strong>${plan?.payment_mode === 'lump_sum' ? 'ชำระก้อนเดียวเต็มจำนวน' : `แบ่งชำระเป็นจำนวน ${plan?.installment_count || 12} งวด`}</strong> โดยมีกำหนดชำระงวดแรกในวันที่ <span class="doc-fill">${esc(plan?.first_due_date || '-')}</span> และงวดต่อๆ ไปตามตารางงวดชำระหนี้
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๔. หลักประกันการกู้ยืม:</strong> ในการกู้ยืมเงินตามสัญญานี้ ผู้กู้ได้จัดให้มีบุคคลเข้าทำสัญญาค้ำประกันการชำระหนี้ของผู้กู้ร่วมรับผิดชอบอย่างลูกหนี้ร่วมตามจำนวนที่ระเบียบกำหนดไว้โดยครบถ้วน
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๕. ข้อตกลงกรณีผิดนัด:</strong> หากผู้กู้ผิดนัดไม่ชำระเงินงวดใดงวดหนึ่ง ผู้ให้กู้มีสิทธิบอกเลิกสัญญาและทวงถามให้ผู้กู้พร้อมทั้งผู้ค้ำประกันชำระเงินต้นพร้อมดอกเบี้ยที่ค้างชำระทั้งหมดทันที และยินยอมให้ดำเนินคดีตามระเบียบกฎหมายของกองทุนหมู่บ้านและชุมชนเมืองแห่งชาติ
-          </div>
-          <div class="doc-clause">
-            สัญญานี้ทำขึ้นเป็นสองฉบับมีข้อความถูกต้องตรงกัน คู่สัญญาได้อ่านและเข้าใจข้อความโดยละเอียดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญต่อหน้าพยาน
-          </div>
-
-          <div style="font-weight:700;margin-top:14px">รายการปัจจัยการผลิตที่ส่งมอบตามสัญญา:</div>
-          <table class="doc-table">
-            <thead>
-              <tr>
-                <th style="width:8%">ลำดับ</th>
-                <th>รายการปัจจัยการผลิต</th>
-                <th style="width:16%">จำนวน</th>
-                <th style="width:18%">ราคาต่อหน่วย</th>
-                <th style="width:20%">รวมเป็นเงิน (บาท)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map((it, idx) => `
-                <tr>
-                  <td style="text-align:center">${idx + 1}</td>
-                  <td>${esc(it.item_name_snapshot)}</td>
-                  <td style="text-align:center">${it.quantity} ${esc(it.unit_snapshot)}</td>
-                  <td style="text-align:right">${money(it.unit_price_snapshot)}</td>
-                  <td style="text-align:right">${money(it.line_total)}</td>
-                </tr>
-              `).join('')}
-              <tr>
-                <td colspan="4" style="text-align:right;font-weight:700">รวมเป็นเงินทั้งสิ้น</td>
-                <td style="text-align:right;font-weight:700">${money(d.amount_num)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          ${installments.length ? `
-            <div style="font-weight:700;margin-top:14px">ตารางกำหนดชำระหนี้ตามงวด:</div>
-            <table class="doc-table">
-              <thead>
-                <tr>
-                  <th>งวดที่</th>
-                  <th>วันครบกำหนดชำระ</th>
-                  <th>เงินต้น (บาท)</th>
-                  <th>ดอกเบี้ย (บาท)</th>
-                  <th>ยอดเรียกเก็บ (บาท)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${installments.slice(0, 12).map(ins => `
-                  <tr>
-                    <td style="text-align:center">${ins.installment_no}</td>
-                    <td style="text-align:center">${esc(ins.due_date)}</td>
-                    <td style="text-align:right">${money(ins.principal_due)}</td>
-                    <td style="text-align:right">${money(ins.interest_due)}</td>
-                    <td style="text-align:right;font-weight:700">${money(ins.amount_due)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : ''}
-
-          <div class="doc-signatures">
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้กู้</div>
-              <div class="sig-role">(${esc(req.fullname)})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................คู่สมรสผู้กู้ (ให้ความยินยอม)</div>
-              <div class="sig-role">(${esc(req.spouse_name || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ให้กู้</div>
-              <div class="sig-role">(${esc(d.officers.president)})<br>ประธานกรรมการกองทุนหมู่บ้าน</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกันคนที่ ๑</div>
-              <div class="sig-role">(${esc(guarantors[0]?.fullname || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกันคนที่ ๒</div>
-              <div class="sig-role">(${esc(guarantors[1]?.fullname || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกันคนที่ ๓</div>
-              <div class="sig-role">(${esc(guarantors[2]?.fullname || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................พยาน (กรรมการ)</div>
-              <div class="sig-role">(${esc(d.officers.committees[0] || 'กรรมการกองทุนหมู่บ้าน')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................พยาน (เหรัญญิก)</div>
-              <div class="sig-role">(${esc(d.officers.committees[1] || 'เหรัญญิกกองทุนหมู่บ้าน')})</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  } else if (type === 'guarantor') {
-    return `
-      <div class="print-doc">
-        <div class="doc-header">
-          <div class="doc-title">สัญญาค้ำประกันเงินกู้โครงการประชารัฐ</div>
-          <div class="doc-subtitle">${esc(v.full_address)}</div>
-          <div class="doc-meta-row">
-            <div><strong>ประกอบสัญญากู้เลขที่:</strong> ${esc(req.year_be)}/${String(req.id).padStart(4,'0')}</div>
-            <div><strong>ทำขึ้นเมื่อวันที่:</strong> ${thaiDate}</div>
-          </div>
-        </div>
-
-        <div class="doc-body">
-          <div class="doc-clause">
-            สัญญานี้ทำขึ้น ณ ที่ทำการ${esc(v.name)} โดยข้าพเจ้าผู้มีรายนามดังต่อไปนี้ ซึ่งต่อไปในสัญญานี้เรียกว่า <strong>"ผู้ค้ำประกัน"</strong>
-          </div>
-          ${guarantors.map((g, i) => `
-            <div class="doc-clause" style="margin-bottom:8px">
-              <strong>${i + 1}.</strong> <span class="doc-fill">${esc(g.fullname)}</span> เลขประจำตัวประชาชน <span class="doc-fill">${esc(g.national_id || '...........................................')}</span> อยู่บ้านเลขที่ <span class="doc-fill">${esc(g.address || '...........................................')}</span> โทรศัพท์ <span class="doc-fill">${esc(g.phone || '......................')}</span>
-            </div>
-          `).join('') || '<div class="notice">ยังไม่มีรายชื่อผู้ค้ำประกันในระบบ (กรุณาลงชื่อในช่องผู้ค้ำประกันด้านล่าง)</div>'}
-
-          <div class="doc-clause" style="margin-top:14px">
-            ได้ตกลงทำสัญญาค้ำประกันให้ไว้แก่ <strong>${esc(v.name)}</strong> ซึ่งต่อไปนี้เรียกว่า <strong>"ผู้ให้กู้"</strong> ดังมีข้อความต่อไปนี้
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๑.</strong> ตามที่ <span class="doc-fill">${esc(req.fullname)}</span> (ผู้กู้) ได้ทำสัญญากู้ยืมเงินโครงการประชารัฐ ฉบับลงวันที่ ${thaiDate} เพื่อซื้อปัจจัยการผลิตเป็นจำนวนเงิน <span class="doc-fill">${money(d.amount_num)} บาท</span> (<span class="doc-fill">${esc(d.amount_text)}</span>) พร้อมดอกเบี้ยในอัตราร้อยละ ๖ ต่อปีนั้น
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๒.</strong> ผู้ค้ำประกันตกลงยินยอมผูกพันตนเข้าเป็นผู้ค้ำประกันหนี้ของผู้กู้ดังกล่าวข้างต้น โดยยอมรับผิดชอบอย่างลูกหนี้ร่วมกับผู้กู้ทุกประการ หากผู้กู้ผิดนัดไม่ชำระหนี้ไม่ว่ากรณีใดๆ ผู้ค้ำประกันยินยอมรับผิดชดใช้หนี้เงินต้น ดอกเบี้ย และค่าเสียหายอันพึงมี ให้แก่ผู้ให้กู้จนครบถ้วนทันทีที่ได้รับหนังสือบอกกล่าวทวงถาม
-          </div>
-          <div class="doc-clause">
-            <strong>ข้อ ๓.</strong> ผู้ค้ำประกันจะไม่เพิกถอนการค้ำประกันนี้ตลอดเวลาที่ผู้กู้ยังมิได้ชำระหนี้ให้แก่ผู้ให้กู้จนเสร็จสิ้น
-          </div>
-          <div class="doc-clause">
-            ผู้ค้ำประกันได้อ่านและเข้าใจข้อความในสัญญานี้โดยละเอียดตลอดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญต่อหน้าพยาน
-          </div>
-
-          <div class="doc-signatures">
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกันคนที่ ๑</div>
-              <div class="sig-role">(${esc(guarantors[0]?.fullname || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................คู่สมรสผู้ค้ำประกันคนที่ ๑ (ยินยอม)</div>
-              <div class="sig-role">(........................................................)</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกันคนที่ ๒</div>
-              <div class="sig-role">(${esc(guarantors[1]?.fullname || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................คู่สมรสผู้ค้ำประกันคนที่ ๒ (ยินยอม)</div>
-              <div class="sig-role">(........................................................)</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ค้ำประกันคนที่ ๓</div>
-              <div class="sig-role">(${esc(guarantors[2]?.fullname || '........................................................')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................คู่สมรสผู้ค้ำประกันคนที่ ๓ (ยินยอม)</div>
-              <div class="sig-role">(........................................................)</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................พยาน (กรรมการ)</div>
-              <div class="sig-role">(${esc(d.officers.committees[0] || 'กรรมการกองทุนหมู่บ้าน')})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้รับสัญญาค้ำประกัน</div>
-              <div class="sig-role">(${esc(d.officers.president)})<br>ประธานกรรมการกองทุนหมู่บ้าน</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  } else {
-    // Proposal (กทบ. ๐๑/๐๒)
-    return `
-      <div class="print-doc">
-        <div class="doc-header">
-          <div class="doc-title">แบบคำขอกู้ยืมเงินและปัจจัยการผลิต โครงการประชารัฐ (กทบ. ๐๑/๐๒)</div>
-          <div class="doc-subtitle">${esc(v.full_address)}</div>
-          <div class="doc-meta-row">
-            <div><strong>คำขอเลขที่:</strong> REQ-${esc(req.year_be)}-${String(req.id).padStart(4,'0')}</div>
-            <div><strong>วันที่ยื่นคำขอ:</strong> ${thaiDate}</div>
-          </div>
-        </div>
-
-        <div class="doc-body">
-          <div class="doc-clause">
-            ข้าพเจ้า <span class="doc-fill">${esc(req.fullname)}</span> รหัสสมาชิก <span class="doc-fill">${esc(req.member_code)}</span> เลขประจำตัวประชาชน <span class="doc-fill">${esc(req.national_id || '...........................................')}</span> อยู่บ้านเลขที่ <span class="doc-fill">${esc(req.address || '...........................................')}</span> เบอร์โทรศัพท์ <span class="doc-fill">${esc(req.phone || '......................')}</span> สถานภาพสมรส <span class="doc-fill">${esc(req.marital_status)}</span> ${req.spouse_name ? `(คู่สมรส: <span class="doc-fill">${esc(req.spouse_name)}</span>)` : ''}
-          </div>
-          <div class="doc-clause">
-            มีความประสงค์ขอกู้ยืมเงินในโครงการประชารัฐ (ปุ๋ย ยา และเมล็ดพันธุ์) ประจำปีงบประมาณ <span class="doc-fill">${esc(req.year_be)}</span> วงเงินทั้งสิ้น <span class="doc-fill">${money(d.amount_num)} บาท</span> (<span class="doc-fill">${esc(d.amount_text)}</span>) เพื่อวัตถุประสงค์: <span class="doc-fill">${esc(req.purpose || 'จัดซื้อปัจจัยการผลิตทางการเกษตร')}</span> โดยมีรายการสินค้าที่ต้องการดังต่อไปนี้
-          </div>
-
-          <table class="doc-table">
-            <thead>
-              <tr>
-                <th style="width:8%">ลำดับ</th>
-                <th>รายการปัจจัยการผลิตที่ต้องการ</th>
-                <th style="width:16%">จำนวน</th>
-                <th style="width:18%">ราคาอ้างอิง</th>
-                <th style="width:20%">รวมเงิน (บาท)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map((it, idx) => `
-                <tr>
-                  <td style="text-align:center">${idx + 1}</td>
-                  <td>${esc(it.item_name_snapshot)}</td>
-                  <td style="text-align:center">${it.quantity} ${esc(it.unit_snapshot)}</td>
-                  <td style="text-align:right">${money(it.unit_price_snapshot)}</td>
-                  <td style="text-align:right">${money(it.line_total)}</td>
-                </tr>
-              `).join('')}
-              <tr>
-                <td colspan="4" style="text-align:right;font-weight:700">ยอดรวมคำขอทั้งสิ้น</td>
-                <td style="text-align:right;font-weight:700">${money(d.amount_num)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div style="font-weight:700;margin-top:14px">รายชื่อบุคคลผู้ค้ำประกันการกู้ยืม:</div>
-          ${guarantors.map((g, i) => `
-            <div style="font-size:12.5pt;margin:6px 0 6px 20px">
-              <strong>${i + 1}.</strong> <span class="doc-fill">${esc(g.fullname)}</span> เลขบัตรประชาชน: <span class="doc-fill">${esc(g.national_id || '-')}</span> โทร: <span class="doc-fill">${esc(g.phone || '-')}</span> ที่อยู่: <span class="doc-fill">${esc(g.address || '-')}</span>
-            </div>
-          `).join('') || '<div class="text-muted small">ไม่มีรายชื่อผู้ค้ำประกันในระบบ</div>'}
-
-          <div style="font-weight:700;margin-top:14px">เอกสารหลักฐานประกอบคำขอ:</div>
-          <div style="font-size:11.5pt;margin-left:20px;line-height:1.8">
-            [ / ] สำเนาบัตรประจำตัวประชาชนและสำเนาทะเบียนบ้านของผู้ขอกู้<br>
-            [ / ] สำเนาบัตรประจำตัวประชาชนและทะเบียนบ้านของคู่สมรส (กรณีสมรส)<br>
-            [ / ] สำเนาบัตรประจำตัวประชาชนและสำเนาทะเบียนบ้านของผู้ค้ำประกันทุกคน<br>
-            [ / ] เอกสารสิทธิ์ในที่ดินทำกินหรือหนังสือยินยอมให้ทำประโยชน์ในที่ดิน
-          </div>
-
-          <div class="doc-signatures" style="margin-top:20px">
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................ผู้ยื่นคำขอกู้</div>
-              <div class="sig-role">(${esc(req.fullname)})</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <div class="sig-name">(ลงชื่อ).................................................................คู่สมรส (ให้ความยินยอม)</div>
-              <div class="sig-role">(${esc(req.spouse_name || '........................................................')})</div>
-            </div>
-          </div>
-
-          <div class="official-box">
-            <div style="font-weight:700;text-align:center;margin-bottom:8px">ส่วนการตรวจสอบและพิจารณาของคณะกรรมการกองทุนหมู่บ้าน</div>
-            <div style="font-size:11.5pt;line-height:1.8">
-              ผลการตรวจสอบคุณสมบัติ: [ / ] ถูกต้องครบถ้วนตามระเบียบ &nbsp;&nbsp;&nbsp; [ &nbsp; ] ไม่ถูกต้อง ขาดเอกสาร<br>
-              มติที่ประชุมคณะกรรมการกองทุนหมู่บ้าน: [ / ] <strong>เห็นชอบอนุมัติ</strong> วงเงิน <span class="doc-fill">${money(d.amount_num)} บาท</span> &nbsp;&nbsp;&nbsp; [ &nbsp; ] ไม่อนุมัติ
-            </div>
-            <div class="doc-signatures" style="margin-top:16px">
-              <div class="sig-box">
-                <div class="sig-line"></div>
-                <div class="sig-name">(ลงชื่อ).................................................................กรรมการผู้ตรวจสอบ</div>
-                <div class="sig-role">(${esc(d.officers.committees[0] || 'กรรมการกองทุนหมู่บ้าน')})</div>
-              </div>
-              <div class="sig-box">
-                <div class="sig-line"></div>
-                <div class="sig-name">(ลงชื่อ).................................................................ประธานกรรมการกองทุนหมู่บ้าน</div>
-                <div class="sig-role">(${esc(d.officers.president)})</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
+function officialFormTitle(type){
+  return ({all_in_one:'ชุดเอกสารสัญญา กทบ.๐๔-๐๕-๐๓',contract:'สัญญากู้ยืมเงิน แบบ กทบ.๐๔',guarantor:'สัญญาค้ำประกัน แบบ กทบ.๐๕',spouse:'คำรับรองและยินยอมของคู่สมรส แบบ กทบ.๐๓',proposal:'แบบคำขอกู้ยืม กทบ.๐๑/๐๒'})[type] || 'แบบฟอร์มกองทุนหมู่บ้าน';
 }
-
+function generateFormHtml(type, d){
+  const req=d.request||{}, items=d.items||[], gs=d.guarantors||[], ins=d.installments||[], plan=d.payment_plan, v=d.village_info||{}, officers=d.officers||{};
+  const committees=officers.committees||[], president=officers.president||'ประธานกองทุนหมู่บ้าน';
+  const fill=(x)=>'<span class="doc-fill">'+esc(x||'................................................')+'</span>';
+  const clause=(n,s)=>'<p class="doc-p"><strong>ข้อ '+n+'.</strong> '+s+'</p>';
+  const date=getThaiDateParts(req.created_at), dateText=toThaiDigits(date.day)+' เดือน '+date.month+' พ.ศ. '+toThaiDigits(date.year);
+  const no=toThaiDigits(req.year_be||'')+'/'+toThaiDigits(String(req.id||'').padStart(4,'0'));
+  const header=(code,title)=>'<div class="ktb-form-code">แบบ '+code+'</div>'+getKtbLogoSvg(48)+'<div class="ktb-title">'+title+'</div><table class="ktb-header-table"><tr><td>เลขที่ '+fill(no)+'</td><td style="text-align:right">ทำที่ '+esc(v.name||'กองทุนหมู่บ้าน')+'</td></tr><tr><td colspan="2" style="text-align:right">วันที่ '+fill(dateText)+'</td></tr></table>';
+  const sign=(label,person)=>'<td><br><br>ลงชื่อ ................................................<br>('+esc(person||'................................................')+')<br>'+label+'</td>';
+  const sig=(rows)=>'<table class="sig-table"><tbody>'+rows.map(r=>'<tr>'+r.map(x=>sign(x[0],x[1])).join('')+'</tr>').join('')+'</tbody></table>';
+  const page=(code,title,body)=>'<section class="page-container ktb-page">'+header(code,title)+body+'<div class="marginal-sign">ลงชื่อ ..................................... กำกับทุกหน้า</div></section>';
+  const table='<table class="doc-table"><thead><tr><th>ลำดับ</th><th>รายการ</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>รวม (บาท)</th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td style="text-align:center">'+toThaiDigits(i+1)+'</td><td>'+esc(x.item_name_snapshot)+'</td><td>'+esc(x.quantity)+' '+esc(x.unit_snapshot)+'</td><td>'+money(x.unit_price_snapshot)+'</td><td>'+money(x.line_total)+'</td></tr>').join('')+'<tr><td colspan="4" style="text-align:right">รวมเป็นเงิน</td><td>'+money(d.amount_num)+'</td></tr></tbody></table>';
+  const borrower=fill(req.fullname)+' เลขประจำตัวประชาชน '+fill(req.national_id)+' อยู่บ้านเลขที่ '+fill(req.address)+' โทรศัพท์ '+fill(req.phone);
+  const contract1='<p class="doc-p">สัญญานี้ทำขึ้นระหว่าง '+esc(v.name||'กองทุนหมู่บ้าน')+' โดย '+fill(president)+' ตำแหน่งประธานกองทุน ซึ่งต่อไปเรียกว่า “ผู้ให้กู้” กับ '+borrower+' ซึ่งต่อไปเรียกว่า “ผู้กู้” ทั้งสองฝ่ายตกลงกันดังต่อไปนี้</p>'+
+    clause('๑','ผู้กู้กู้เงินเพื่อจัดซื้อปัจจัยการผลิต เป็นจำนวน '+fill(money(d.amount_num)+' บาท')+' ('+fill(d.amount_text)+') ตามรายการแนบท้ายสัญญา')+
+    clause('๒','ผู้กู้ชำระดอกเบี้ยร้อยละ '+fill('๖ (หก) ต่อปี')+' รวมเงินต้นและดอกเบี้ย '+fill(money(d.total_payable_num)+' บาท')+' ('+fill(d.total_payable_text)+')')+
+    clause('๓','ผู้กู้จะใช้เงินกู้หรือปัจจัยการผลิตตามวัตถุประสงค์ของโครงการ และยินยอมให้คณะกรรมการตรวจสอบได้')+
+    clause('๔','กำหนดชำระ '+fill(plan&&plan.payment_mode==='lump_sum'?'ครั้งเดียว':'แบ่งชำระ '+(plan&&plan.installment_count||ins.length||12)+' งวด')+' เริ่มวันที่ '+fill(plan&&plan.first_due_date)+' ตามตารางแนบท้าย')+'<p><strong>รายการปัจจัยการผลิตตามสัญญา</strong></p>'+table;
+  const ir=ins.slice(0,12).map(x=>'<tr><td>'+toThaiDigits(x.installment_no)+'</td><td>'+esc(x.due_date)+'</td><td>'+money(x.principal_due)+'</td><td>'+money(x.interest_due)+'</td><td>'+money(x.amount_due)+'</td></tr>').join('');
+  const contract2=clause('๕','ผู้กู้จัดให้มีผู้ค้ำประกันตามสัญญาค้ำประกัน แบบ กทบ.๐๕ ซึ่งเป็นส่วนหนึ่งของสัญญานี้')+
+    clause('๖','หากผิดนัดชำระ ผู้ให้กู้มีสิทธิทวงถามและดำเนินการตามระเบียบและกฎหมายที่เกี่ยวข้อง')+
+    clause('๗','ผู้กู้ยินยอมให้ผู้ให้กู้ติดต่อทวงถามตามที่อยู่ที่แจ้ง และจะแจ้งเมื่อมีการเปลี่ยนแปลง')+
+    '<p class="doc-p">สัญญานี้จัดทำสองฉบับ มีข้อความถูกต้องตรงกัน คู่สัญญาได้อ่านและเข้าใจแล้ว จึงลงลายมือชื่อต่อหน้าพยาน</p>'+
+    '<p><strong>ตารางกำหนดชำระหนี้</strong></p><table class="doc-table"><thead><tr><th>งวด</th><th>วันครบกำหนด</th><th>เงินต้น</th><th>ดอกเบี้ย</th><th>รวม</th></tr></thead><tbody>'+ir+'</tbody></table>'+
+    sig([[['ผู้กู้',req.fullname],['ผู้ให้กู้ / ประธานกองทุน',president]],[['กรรมการผู้ให้กู้',committees[0]],['กรรมการ / พยาน',committees[1]]],[['พยาน',''],['ผู้เขียน/ผู้พิมพ์','']]]);
+  const contract=page('กทบ.๐๔','สัญญากู้ยืมเงิน',contract1)+page('กทบ.๐๔','สัญญากู้ยืมเงิน (ต่อ)',contract2);
+  const guarantorPeople=[0,1].map(i=>{const g=gs[i]||{};return '<p class="doc-p">ผู้ค้ำประกันคนที่ '+toThaiDigits(i+1)+' '+fill(g.fullname)+' เลขประจำตัวประชาชน '+fill(g.national_id)+' อยู่บ้านเลขที่ '+fill(g.address)+' โทรศัพท์ '+fill(g.phone)+'</p>';}).join('');
+  const guarantor=page('กทบ.๐๕','สัญญาค้ำประกันการกู้ยืมเงิน','<p class="doc-p">ทำที่ '+esc(v.name||'กองทุนหมู่บ้าน')+' ผู้ค้ำประกันมีรายนามดังนี้: '+guarantorPeople+' ค้ำประกันให้ '+fill(req.fullname)+' ตามสัญญาเลขที่ '+fill(no)+' วงเงิน '+fill(money(d.amount_num)+' บาท')+' ('+fill(d.amount_text)+')</p>'+clause('๑','ผู้ค้ำประกันยินยอมค้ำประกันการชำระหนี้ตามสัญญากู้ดังกล่าว ภายในขอบเขตและเงื่อนไขตามกฎหมาย')+clause('๒','ผู้ค้ำประกันรับทราบสิทธิและหน้าที่ อ่านเข้าใจข้อความโดยตลอด และลงลายมือชื่อต่อหน้าพยาน')+'<p class="doc-p">สัญญานี้จัดทำสองฉบับ มีข้อความถูกต้องตรงกัน</p>'+sig([[['ผู้ค้ำประกันคนที่ ๑',gs[0]&&gs[0].fullname],['ผู้ค้ำประกันคนที่ ๒',gs[1]&&gs[1].fullname]],[['ผู้ให้กู้ / ประธาน',president],['กรรมการผู้ให้กู้',committees[0]]],[['พยาน',committees[1]],['พยาน','']]]));
+  const spouse=page('กทบ.๐๓','คำรับรองและยินยอมของคู่สมรส','<p class="doc-p">ข้าพเจ้า '+fill(req.spouse_name)+' อยู่บ้านเลขที่ '+fill(req.address)+' เป็นคู่สมรสของ '+fill(req.fullname)+' สมาชิกกองทุนหมู่บ้าน '+esc(v.name||'')+'</p><p class="doc-p">ข้าพเจ้ารับรองว่าได้รับทราบและยินยอมให้คู่สมรสกู้ยืมเงินจำนวน '+fill(money(d.amount_num)+' บาท')+' ('+fill(d.amount_text)+') ตามสัญญากู้ยืมเงิน แบบ กทบ.๐๔ และยินยอมให้ใช้เงินหรือปัจจัยการผลิตตามวัตถุประสงค์โครงการ</p><p class="doc-p">ได้อ่านและเข้าใจข้อความแล้ว จึงลงลายมือชื่อไว้ต่อหน้าพยาน</p><p style="text-align:right">วันที่ '+fill(dateText)+'</p>'+sig([[['ผู้ให้คำรับรองและยินยอม',req.spouse_name]],[['พยานและผู้รับรอง','']],[['พยานและผู้รับรอง','']]]));
+  const proposal=page('กทบ.๐๑/๐๒','แบบคำขอกู้ยืมเงินและปัจจัยการผลิต','<p class="doc-p">ข้าพเจ้า '+borrower+' มีความประสงค์ขอกู้ยืมเงิน ประจำปี '+toThaiDigits(req.year_be||'')+' วงเงิน '+fill(money(d.amount_num)+' บาท')+' ('+fill(d.amount_text)+') เพื่อ '+fill(req.purpose||'ประกอบอาชีพเกษตรกรรม')+'</p>'+table+'<p class="doc-p">ข้าพเจ้ารับรองว่าข้อมูลเป็นความจริง และยินยอมปฏิบัติตามระเบียบกองทุน</p>'+sig([[['ผู้ยื่นคำขอ',req.fullname],['คู่สมรส (ถ้ามี)',req.spouse_name]],[['กรรมการผู้ตรวจสอบ',committees[0]],['ประธานกองทุน',president]]]));
+  if(type==='contract')return '<div class="print-doc">'+contract+'</div>';
+  if(type==='guarantor')return '<div class="print-doc">'+guarantor+'</div>';
+  if(type==='spouse')return '<div class="print-doc">'+spouse+'</div>';
+  if(type==='all_in_one')return '<div class="print-doc">'+contract+guarantor+spouse+'</div>';
+  return '<div class="print-doc">'+proposal+'</div>';
+}
 async function line(c){c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">ประกาศแจ้งเตือน LINE</h2><p class="card-subtitle">ช่องทางสื่อสารที่อยู่ในขอบเขตโครงการ</p></div></div><form id="line-form"><div class="form-group"><label class="form-label">ข้อความประกาศ</label><textarea class="form-control" id="line-msg" placeholder="เขียนข้อความที่ต้องการแจ้งสมาชิก" required></textarea></div><button class="btn btn-primary" type="submit">${icon('send')}ส่งประกาศ</button></form><div class="notice" style="margin-top:15px">การเชื่อมต่อ LINE จริงจะใช้ค่าการตั้งค่าของโครงการในภายหลัง หน้านี้เตรียม Workflow ไว้แล้ว</div></div>`;$('#line-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/line_notify.php?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:$('#line-msg').value})});if(r)toast(r.message)})}
 async function risk(c){const r=await api('api/members.php?action=list');const rows=(r?.data||[]).filter(x=>x.risk_status!=='normal');c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">จัดการสถานะสมาชิกกรณีพิเศษ</h2><p class="card-subtitle">พักชำระหนี้หรือเสียชีวิต โดยเก็บข้อมูลย้อนหลังไว้</p></div></div>${rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.fullname)}</td><td><span class="badge badge-warning">${esc(x.risk_status)}</span></td><td><button class="btn btn-secondary btn-sm" onclick="restoreRisk(${x.id})">${icon('arrow-counterclockwise')}เปลี่ยนเป็นปกติ</button></td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีสมาชิกในสถานะพิเศษ','shield-check')}</div>`}
 async function restoreRisk(id){const r=await api('api/members.php?action=update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,risk_status:'normal'})});if(r)nav('risk')}
