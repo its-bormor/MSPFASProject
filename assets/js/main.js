@@ -485,6 +485,32 @@ function printDocumentHtml(contentHtml, title = 'พิมพ์แบบฟอ�
     .receipt-row:last-child {
       border-bottom: 0;
     }
+    .no-print, button, .toolbar, .btn, input, select {
+      display: none !important;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11pt;
+      margin: 12px 0;
+    }
+    table th, table td {
+      border: 1px solid #333;
+      padding: 6px 8px;
+    }
+    table th {
+      background: #f2f2f2;
+      font-weight: 700;
+      text-align: center;
+    }
+    .badge {
+      border: 1px solid #555;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+      font-weight: 600;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
