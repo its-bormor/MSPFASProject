@@ -214,6 +214,9 @@ try {
         }
         $requestedRole = (string)($d['role'] ?? 'member');
         $role = in_array($requestedRole, ['member','committee','president'], true) ? $requestedRole : 'member';
+        if ($user['role'] !== 'president' && $role === 'president') {
+            $role = 'committee';
+        }
         $stmt=$pdo->prepare('INSERT INTO members (username,password,fullname,national_id,phone,role,marital_status,spouse_name,address) VALUES (?,?,?,?,?,?,?,?,?)');
         $stmt->execute([$username,password_hash($password,PASSWORD_DEFAULT),$fullname,$national,trim((string)($d['phone']??'')),$role,$d['marital_status']??'single',trim((string)($d['spouse_name']??'')),trim((string)($d['address']??''))]);
         $id=(int)$pdo->lastInsertId();
@@ -246,6 +249,10 @@ try {
         foreach($fields as $f){
             if(array_key_exists($f,$d)){
                 $value=$d[$f];
+                if($f==='role'){
+                    if (!in_array($value, ['member','committee','president'], true)) $value = 'member';
+                    if ($user['role'] !== 'president' && $value === 'president') $value = 'committee';
+                }
                 if($f==='national_id' && trim((string)$value)==='') $value=null;
                 $sets[]="$f=?";$params[]=$value;
             }

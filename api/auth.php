@@ -30,7 +30,14 @@ try {
         $stmt = $pdo->prepare('SELECT id, username, password, fullname, national_id, phone, role, marital_status, spouse_name, address, risk_status FROM members WHERE username = ? AND is_active = 1 LIMIT 1');
         $stmt->execute([trim((string)($data['username'] ?? ''))]);
         $row = $stmt->fetch();
-        if (!$row || !password_verify((string)($data['password'] ?? ''), $row['password'])) {
+        $inputPassword = (string)($data['password'] ?? '');
+        $valid = $row && password_verify($inputPassword, $row['password']);
+        if (!$valid && $row && $row['password'] === $inputPassword) {
+            $valid = true;
+            $newHash = password_hash($inputPassword, PASSWORD_DEFAULT);
+            $pdo->prepare('UPDATE members SET password=? WHERE id=?')->execute([$newHash, $row['id']]);
+        }
+        if (!$valid) {
             json_response(['status'=>'error','message'=>'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'], 401);
         }
         unset($row['password']);

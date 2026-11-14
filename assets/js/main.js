@@ -121,20 +121,26 @@ async function members(c){
   c.innerHTML = `<div class="card">
     <div class="card-header">
       <div>
-        <h2 class="card-title">ข้อมูลสมาชิกกองทุน</h2>
-        <p class="card-subtitle">ค้นหา แก้ไข นำเข้า และจัดการบัญชีสมาชิก</p>
+        <h2 class="card-title">ข้อมูลสมาชิกและผู้ใช้งาน</h2>
+        <p class="card-subtitle">ค้นหา แก้ไข นำเข้า และจัดการบัญชีสมาชิก / คณะกรรมการ / ประธานกองทุน</p>
       </div>
       <div class="toolbar">
         <button class="btn btn-secondary" onclick="showImportModal()">${icon('file-earmark-spreadsheet')}นำเข้าสมาชิก (Excel / CSV)</button>
-        <button class="btn btn-primary" onclick="showMemberForm()">${icon('person-plus')}เพิ่มสมาชิก</button>
+        <button class="btn btn-primary" onclick="showMemberForm()">${icon('person-plus')}เพิ่มผู้ใช้งาน / สมาชิก</button>
       </div>
     </div>
-    <div class="toolbar" style="margin-bottom:15px">
-      <input id="member-search" class="form-control" style="max-width:400px" placeholder="ค้นหาชื่อ / username / เลขบัตร / โทรศัพท์" oninput="filterMemberTable()">
+    <div class="toolbar" style="margin-bottom:15px;gap:10px">
+      <input id="member-search" class="form-control" style="max-width:350px" placeholder="ค้นหาชื่อ / username / เลขบัตร / โทรศัพท์" oninput="filterMemberTable()">
+      <select id="member-role-filter" class="form-select" style="max-width:180px" onchange="filterMemberTable()">
+        <option value="">บทบาททั้งหมด</option>
+        <option value="member">สมาชิกกองทุน</option>
+        <option value="committee">คณะกรรมการ</option>
+        <option value="president">ประธานกองทุน</option>
+      </select>
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>สมาชิก</th><th>Username</th><th>โทรศัพท์</th><th>เลขบัตร</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+        <thead><tr><th>ชื่อ-นามสกุล</th><th>Username</th><th>บทบาท</th><th>โทรศัพท์</th><th>เลขบัตร</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
         <tbody id="member-tbody">${memberRows(state.members)}</tbody>
       </table>
     </div>
@@ -195,10 +201,131 @@ function showImportModal(){
     }
   });
 }
-function memberRows(rows){return rows.filter(x=>x.role==='member').map(x=>`<tr><td><strong>${esc(x.fullname)}</strong></td><td>${esc(x.username)}</td><td>${esc(x.phone||'-')}</td><td>${esc(x.national_id||'-')}</td><td>${x.risk_status==='normal'?'<span class="badge badge-success">ปกติ</span>':`<span class="badge badge-warning">${esc(x.risk_status)}</span>`}</td><td>${x.is_active?'<span class="badge badge-success">ใช้งาน</span>':'<span class="badge badge-neutral">ปิดใช้งาน</span>'}</td><td><button class="btn btn-secondary btn-sm" onclick="showMemberForm(${x.id})">${icon('pencil')}แก้ไข</button></td></tr>`).join('')||`<tr><td colspan="7">${empty('ไม่พบสมาชิก')}</td></tr>`}
-function filterMemberTable(){const q=$('#member-search').value.toLowerCase();$('#member-tbody').innerHTML=memberRows(state.members.filter(x=>JSON.stringify(x).toLowerCase().includes(q)))}
-function showMemberForm(id){const x=state.members.find(m=>m.id==id);openModal(id?'แก้ไขสมาชิก':'เพิ่มสมาชิก',`<form id="member-form"><input type="hidden" id="m-id" value="${id||''}"><div class="form-grid"><div class="form-group"><label class="form-label">ชื่อผู้ใช้</label><input class="form-control" id="m-user" value="${esc(x?.username)}" required><div class="form-help">ควรใช้รหัสสมาชิกหรือชื่อที่จำง่าย ไม่ใช้เลขบัตรประชาชนเป็นรหัสผ่าน</div></div><div class="form-group"><label class="form-label">รหัสผ่าน ${id?'(เว้นว่างถ้าไม่เปลี่ยน)':''}</label><input type="password" class="form-control" id="m-pass" ${id?'':'required'}></div></div><div class="form-grid"><div class="form-group"><label class="form-label">ชื่อ-นามสกุล</label><input class="form-control" id="m-name" value="${esc(x?.fullname)}" required></div><div class="form-group"><label class="form-label">เบอร์โทรศัพท์</label><input class="form-control" id="m-phone" value="${esc(x?.phone)}"></div></div><div class="form-grid"><div class="form-group"><label class="form-label">เลขบัตรประชาชน</label><input class="form-control" id="m-nid" maxlength="13" value="${esc(x?.national_id)}"></div><div class="form-group"><label class="form-label">สถานะความเสี่ยง</label><select class="form-select" id="m-risk"><option value="normal" ${x?.risk_status==='normal'?'selected':''}>ปกติ</option><option value="suspended" ${x?.risk_status==='suspended'?'selected':''}>พักชำระหนี้</option><option value="deceased" ${x?.risk_status==='deceased'?'selected':''}>เสียชีวิต</option></select></div></div><div class="form-group"><label class="form-label">ที่อยู่</label><textarea class="form-control" id="m-address">${esc(x?.address)}</textarea></div><button class="btn btn-primary btn-block">${icon('save')}บันทึกข้อมูล</button></form>`);$('#member-form').addEventListener('submit',saveMember)}
-async function saveMember(e){e.preventDefault();const id=$('#m-id').value;const d={username:$('#m-user').value.trim(),fullname:$('#m-name').value.trim(),phone:$('#m-phone').value.trim(),national_id:$('#m-nid').value.trim(),risk_status:$('#m-risk').value,address:$('#m-address').value};if($('#m-pass').value)d.password=$('#m-pass').value;const r=await api('api/members.php?action='+(id?'update':'create'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(id?{...d,id}:d)});if(r){closeModal();nav('members')}}
+function roleBadge(r){
+  const t = roleText(r);
+  const b = r === 'president' ? 'primary' : (r === 'committee' ? 'info' : 'neutral');
+  return `<span class="badge badge-${b}">${esc(t)}</span>`;
+}
+function memberRows(rows){
+  return rows.map(x=>`<tr>
+    <td><strong>${esc(x.fullname)}</strong></td>
+    <td>${esc(x.username)}</td>
+    <td>${roleBadge(x.role)}</td>
+    <td>${esc(x.phone||'-')}</td>
+    <td>${esc(x.national_id||'-')}</td>
+    <td>${x.risk_status==='normal'?'<span class="badge badge-success">ปกติ</span>':`<span class="badge badge-warning">${esc(x.risk_status)}</span>`}</td>
+    <td>${x.is_active?'<span class="badge badge-success">ใช้งาน</span>':'<span class="badge badge-neutral">ปิดใช้งาน</span>'}</td>
+    <td><button class="btn btn-secondary btn-sm" onclick="showMemberForm(${x.id})">${icon('pencil')}แก้ไข</button></td>
+  </tr>`).join('')||`<tr><td colspan="8">${empty('ไม่พบข้อมูล')}</td></tr>`;
+}
+function filterMemberTable(){
+  const q = ($('#member-search')?.value || '').toLowerCase().trim();
+  const rf = $('#member-role-filter')?.value || '';
+  const filtered = state.members.filter(x => {
+    if (rf && x.role !== rf) return false;
+    if (!q) return true;
+    return (x.fullname || '').toLowerCase().includes(q) ||
+           (x.username || '').toLowerCase().includes(q) ||
+           (x.national_id || '').toLowerCase().includes(q) ||
+           (x.phone || '').toLowerCase().includes(q);
+  });
+  $('#member-tbody').innerHTML = memberRows(filtered);
+}
+function showMemberForm(id){
+  const x = state.members.find(m => m.id == id);
+  const isPresident = state.user?.role === 'president';
+  const currentRole = x?.role || 'member';
+
+  openModal(id ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'เพิ่มผู้ใช้งาน / สมาชิก', `
+    <form id="member-form">
+      <input type="hidden" id="m-id" value="${id || ''}">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">ชื่อผู้ใช้ (Username)</label>
+          <input class="form-control" id="m-user" value="${esc(x?.username)}" required>
+          <div class="form-help">ควรใช้ชื่อภาษาอังกฤษหรือรหัสสมาชิกที่จำง่าย ไม่ใช้เลขบัตรประชาชนเป็นรหัสผ่าน</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน ${id ? '(เว้นว่างถ้าไม่ต้องการเปลี่ยน)' : ''}</label>
+          <input type="password" class="form-control" id="m-pass" ${id ? '' : 'required'}>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">ชื่อ-นามสกุล</label>
+          <input class="form-control" id="m-name" value="${esc(x?.fullname)}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">บทบาท (สิทธิ์การใช้งาน)</label>
+          <select class="form-select" id="m-role">
+            <option value="member" ${currentRole === 'member' ? 'selected' : ''}>สมาชิกกองทุน</option>
+            <option value="committee" ${currentRole === 'committee' ? 'selected' : ''}>คณะกรรมการ (แอดมินปกติ)</option>
+            ${isPresident ? `<option value="president" ${currentRole === 'president' ? 'selected' : ''}>ประธานกองทุน (Superadmin)</option>` : ''}
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">เบอร์โทรศัพท์</label>
+          <input class="form-control" id="m-phone" value="${esc(x?.phone)}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เลขบัตรประชาชน</label>
+          <input class="form-control" id="m-nid" maxlength="13" value="${esc(x?.national_id)}">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">สถานะความเสี่ยง</label>
+          <select class="form-select" id="m-risk">
+            <option value="normal" ${x?.risk_status === 'normal' ? 'selected' : ''}>ปกติ</option>
+            <option value="suspended" ${x?.risk_status === 'suspended' ? 'selected' : ''}>พักชำระหนี้</option>
+            <option value="deceased" ${x?.risk_status === 'deceased' ? 'selected' : ''}>เสียชีวิต</option>
+          </select>
+        </div>
+        ${id ? `
+        <div class="form-group">
+          <label class="form-label">สถานะบัญชี</label>
+          <select class="form-select" id="m-active">
+            <option value="1" ${x?.is_active ? 'selected' : ''}>เปิดใช้งาน</option>
+            <option value="0" ${!x?.is_active ? 'selected' : ''}>ปิดใช้งาน</option>
+          </select>
+        </div>` : ''}
+      </div>
+      <div class="form-group">
+        <label class="form-label">ที่อยู่</label>
+        <textarea class="form-control" id="m-address">${esc(x?.address)}</textarea>
+      </div>
+      <button class="btn btn-primary btn-block">${icon('save')}บันทึกข้อมูล</button>
+    </form>
+  `);
+  $('#member-form').addEventListener('submit', saveMember);
+}
+async function saveMember(e){
+  e.preventDefault();
+  const id = $('#m-id').value;
+  const d = {
+    username: $('#m-user').value.trim(),
+    fullname: $('#m-name').value.trim(),
+    role: $('#m-role').value,
+    phone: $('#m-phone').value.trim(),
+    national_id: $('#m-nid').value.trim(),
+    risk_status: $('#m-risk').value,
+    address: $('#m-address').value
+  };
+  const activeEl = $('#m-active');
+  if (activeEl) d.is_active = Number(activeEl.value);
+  if ($('#m-pass').value) d.password = $('#m-pass').value;
+  const r = await api('api/members.php?action=' + (id ? 'update' : 'create'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(id ? { ...d, id } : d)
+  });
+  if (r) {
+    closeModal();
+    nav('members');
+  }
+}
 async function ledger(c){const year=new Date().getFullYear()+543;const r=await api('api/payments.php?action=ledger&year='+year);c.innerHTML=`<div class="grid grid-3"><div class="stat-card"><div class="stat-label">รายรับ</div><div class="stat-value text-success">${money(r?.total_income)}</div></div><div class="stat-card"><div class="stat-label">รายจ่าย</div><div class="stat-value text-danger">${money(r?.total_expense)}</div></div><div class="stat-card"><div class="stat-label">คงเหลือ</div><div class="stat-value">${money(r?.balance)}</div></div></div><div class="card" style="margin-top:18px"><div class="card-header"><div><h2 class="card-title">บัญชีรายรับ–รายจ่าย ปี ${year}</h2></div>${state.user.role==='committee'?`<button class="btn btn-primary" onclick="showLedgerForm()">${icon('plus-lg')}บันทึกรายการ</button>`:''}</div>${r?.data?.length?`<div class="table-wrap"><table class="table"><thead><tr><th>วันที่</th><th>ประเภท</th><th>รายละเอียด</th><th>จำนวนเงิน</th><th>อ้างอิง</th></tr></thead><tbody>${r.data.map(x=>`<tr><td>${esc(x.transaction_date)}</td><td>${x.type==='income'?'<span class="badge badge-success">รายรับ</span>':'<span class="badge badge-danger">รายจ่าย</span>'}</td><td>${esc(x.description)}</td><td>${money(x.amount)}</td><td>${esc(x.reference||'-')}</td></tr>`).join('')}</tbody></table></div>`:empty('ยังไม่มีรายการบัญชี','journal-text')}</div>`}
 function showLedgerForm(){openModal('บันทึกรายการบัญชี',`<form id="ledger-form"><div class="form-grid"><div class="form-group"><label class="form-label">ประเภท</label><select class="form-select" id="l-type"><option value="income">รายรับ</option><option value="expense">รายจ่าย</option></select></div><div class="form-group"><label class="form-label">จำนวนเงิน</label><input class="form-control" id="l-amount" type="number" min="0.01" step="0.01" required></div></div><div class="form-group"><label class="form-label">วันที่</label><input class="form-control" id="l-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-group"><label class="form-label">รายละเอียด</label><input class="form-control" id="l-desc" required></div><div class="form-group"><label class="form-label">เลขที่อ้างอิง</label><input class="form-control" id="l-ref"></div><button class="btn btn-primary btn-block">${icon('save')}บันทึก</button></form>`);$('#ledger-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/payments.php?action=add_transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:$('#l-type').value,amount:$('#l-amount').value,transaction_date:$('#l-date').value,description:$('#l-desc').value,reference:$('#l-ref').value})});if(r){closeModal();nav('ledger')}})}
 // -------------------------------------------------------------
