@@ -6,6 +6,8 @@ const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>Number(v||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const icon=n=>`<i class="bi bi-${n}" aria-hidden="true"></i>`;
 const roleText=r=>r==='president'?'ประธานกองทุน':r==='committee'?'คณะกรรมการ':'สมาชิกกองทุน';
+const maritalMap={single:'โสด',married:'สมรส',widowed:'หม้าย',divorced:'หย่าร้าง','โสด':'โสด','สมรส':'สมรส','หม้าย':'หม้าย','หย่า':'หย่าร้าง','หย่าร้าง':'หย่าร้าง'};
+const maritalText=m=>{if(!m)return '-';const k=String(m).trim().toLowerCase();return maritalMap[k]||m;};
 const statusMap={submitted:['รอตรวจสอบ','warning'],committee_review:['คณะกรรมการกำลังตรวจสอบ','warning'],committee_rejected:['ไม่ผ่านการตรวจสอบ','danger'],president_review:['รอประธานพิจารณา','info'],president_rejected:['ไม่ผ่านการอนุมัติ','danger'],contract_pending:['รอยืนยันสัญญา','info'],member_confirmed:['ยืนยันสัญญาแล้ว','success'],active:['อยู่ระหว่างชำระคืน','success'],completed:['ชำระครบแล้ว','success'],revision_requested:['รอแก้ไขคำขอ','danger'],draft:['แบบร่าง','neutral']};
 function badge(s){const x=statusMap[s]||[s||'-','neutral'];return `<span class="badge badge-${x[1]}">${esc(x[0])}</span>`}
 async function api(url,opt={}){try{const r=await fetch(url,opt);const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(parseError){console.error('API returned non-JSON',r.status,raw);showNotice('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง', 'error', `HTTP ${r.status}${raw?`<br><small>${esc(raw.slice(0,300))}</small>`:''}`);return null}if(!j){showNotice('ไม่สามารถรับข้อมูลจากเซิร์ฟเวอร์ได้','error');return null}if(j.status==='error'){showNotice(j.message||'เกิดข้อผิดพลาด','error');return null}if(j.message) showNotice(j.message,'success');return j}catch(e){console.error(e);showNotice('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้','error');return null}}
@@ -70,7 +72,87 @@ async function stationRequests(){state.stationContext=true;nav('my_requests')}
 async function stationPayment(){state.stationContext=true;nav('my_payments')}
 async function stationDeliveries(){state.stationContext=true;nav('my_deliveries')}
 async function procurement(c){const r=await api('api/procurement.php?action=list');state.procurement=r?.data||[];const fy=await api('api/catalog.php?action=current');state.fiscalYear=fy?.data;c.innerHTML=`<div class="grid grid-2 procurement-page"><div class="card"><div class="card-header"><div><h2 class="card-title">รอบจัดซื้อ</h2><p class="card-subtitle">รวมคำขอที่อนุมัติแล้วเพื่อจัดซื้อเป็นล็อต</p></div><button class="btn btn-primary btn-sm" onclick="createProcurementBatch()">${icon('plus-lg')}สร้างรอบจัดซื้อ</button></div>${state.procurement.length?`<div class="table-wrap mobile-stack-table procurement-table"><table class="table"><thead><tr><th>รอบ</th><th>ปี</th><th>สถานะ</th><th>คำขอ</th><th>รับแล้ว</th><th></th></tr></thead><tbody>${state.procurement.map(b=>`<tr><td><strong>${esc(b.batch_no)}</strong><div class="small text-muted">${esc(b.title)}</div></td><td>${esc(b.year_be)}</td><td>${badge(b.status)}</td><td>${b.request_count}</td><td>${money(b.received_qty)} / ${money(b.ordered_qty)}</td><td><button class="btn btn-secondary btn-sm" onclick="procurementDetail(${b.id})">${icon('eye')}จัดการ</button></td></tr>`).join('')}</tbody></table></div>`:empty('ยังไม่มีรอบจัดซื้อ','truck')}</div><div class="card"><div class="card-header"><div><h2 class="card-title">ขั้นตอนการจัดส่งมอบ</h2><p class="card-subtitle">รับสินค้าเข้ารอบ → ประกาศ → สมาชิกมารับ → ยืนยันส่งมอบ</p></div></div><div class="notice">ระบบจะไม่เปิดเผยข้อมูลร้านค้าให้สมาชิก และจะสร้างรายการรับสินค้าแยกตามคำขอของสมาชิก</div></div></div>`}
-async function createProcurementBatch(){const r=await api('api/procurement.php?action=eligible_requests');const rows=r?.data||[];if(!rows.length){openModal('ยังไม่มีคำขอพร้อมจัดซื้อ',`<div class="notice">ขณะนี้ยังไม่มีคำขอที่ผ่านการอนุมัติและยืนยันสัญญา ซึ่งยังไม่ถูกรวมเข้ารอบจัดซื้อ</div>`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>`);return}openModal('สร้างรอบจัดซื้อ',`<form id="proc-form"><div class="form-group"><label class="form-label">ชื่อรอบจัดซื้อ</label><input id="proc-title" class="form-control" value="รอบจัดซื้อประจำปี ${esc(state.fiscalYear?.year_be||'')}" required></div><div class="section-title">เลือกคำขอที่อนุมัติแล้ว</div><div class="table-wrap"><table class="table"><thead><tr><th></th><th>สมาชิก</th><th>วงเงิน</th></tr></thead><tbody>${rows.map(x=>`<tr><td><input type="checkbox" class="proc-request" value="${x.id}"></td><td>${esc(x.fullname)}<div class="small text-muted">${esc(x.username)}</div></td><td>${money(x.amount_requested)}</td></tr>`).join('')}</tbody></table></div><button class="btn btn-primary btn-block" style="margin-top:16px">${icon('check2')}สร้างรอบจัดซื้อ</button></form>`);$('#proc-form').addEventListener('submit',async e=>{e.preventDefault();const ids=[...document.querySelectorAll('.proc-request:checked')].map(x=>Number(x.value));const x=await api('api/procurement.php?action=create_batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fiscal_year_id:state.fiscalYear.id,title:$('#proc-title').value.trim(),request_ids:ids})});if(x){closeModal();nav('procurement')}})}
+function toggleSelectAllProcRequests(forceState){
+  const cbs = [...document.querySelectorAll('.proc-request')];
+  if(!cbs.length) return;
+  const master = $('#proc-select-all');
+  const btn = $('#btn-toggle-all-proc');
+  const target = forceState !== undefined ? forceState : !cbs.every(cb => cb.checked);
+  cbs.forEach(cb => { cb.checked = target; });
+  if(master) master.checked = target;
+  if(btn){
+    btn.innerHTML = target ? `${icon('dash-square')} ยกเลิกการเลือก` : `${icon('check-all')} เลือกทั้งหมด`;
+  }
+}
+function updateProcSelectAllState(){
+  const cbs = [...document.querySelectorAll('.proc-request')];
+  if(!cbs.length) return;
+  const master = $('#proc-select-all');
+  const btn = $('#btn-toggle-all-proc');
+  const allChecked = cbs.every(cb => cb.checked);
+  const noneChecked = cbs.every(cb => !cb.checked);
+  if(master){
+    master.checked = allChecked;
+    master.indeterminate = !allChecked && !noneChecked;
+  }
+  if(btn){
+    btn.innerHTML = allChecked ? `${icon('dash-square')} ยกเลิกการเลือก` : `${icon('check-all')} เลือกทั้งหมด`;
+  }
+}
+async function createProcurementBatch(){
+  const r = await api('api/procurement.php?action=eligible_requests');
+  const rows = r?.data || [];
+  if(!rows.length){
+    openModal('ยังไม่มีคำขอพร้อมจัดซื้อ',`<div class="notice">ขณะนี้ยังไม่มีคำขอที่ผ่านการอนุมัติและยืนยันสัญญา ซึ่งยังไม่ถูกรวมเข้ารอบจัดซื้อ</div>`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>`);
+    return;
+  }
+  openModal('สร้างรอบจัดซื้อ',`<form id="proc-form">
+    <div class="form-group">
+      <label class="form-label">ชื่อรอบจัดซื้อ</label>
+      <input id="proc-title" class="form-control" value="รอบจัดซื้อประจำปี ${esc(state.fiscalYear?.year_be||'')}" required>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px;flex-wrap:wrap;gap:8px">
+      <div class="section-title" style="margin:0">เลือกคำขอที่อนุมัติแล้ว (${rows.length} รายการ)</div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-all-proc" onclick="toggleSelectAllProcRequests()">${icon('check-all')} เลือกทั้งหมด</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center"><input type="checkbox" id="proc-select-all" title="เลือกทั้งหมด" onchange="toggleSelectAllProcRequests(this.checked)"></th>
+            <th>สมาชิก</th>
+            <th>วงเงิน</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(x=>`<tr>
+            <td style="text-align:center"><input type="checkbox" class="proc-request" value="${x.id}" onchange="updateProcSelectAllState()"></td>
+            <td><strong>${esc(x.fullname)}</strong><div class="small text-muted">${esc(x.username)}</div></td>
+            <td>${money(x.amount_requested)} บาท</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:16px">${icon('check2')}สร้างรอบจัดซื้อ</button>
+  </form>`);
+  $('#proc-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const ids = [...document.querySelectorAll('.proc-request:checked')].map(x=>Number(x.value));
+    if(!ids.length){
+      toast('กรุณาเลือกคำขออย่างน้อย 1 รายการ','error');
+      return;
+    }
+    const x = await api('api/procurement.php?action=create_batch',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fiscal_year_id:state.fiscalYear.id,title:$('#proc-title').value.trim(),request_ids:ids})
+    });
+    if(x){
+      closeModal();
+      nav('procurement');
+    }
+  });
+}
 async function procurementDetail(id){const r=await api('api/procurement.php?action=detail&id='+id);if(!r)return;const b=r.data;const d=await api('api/procurement.php?action=deliveries&batch_id='+id);const deliveries=d?.data||[];openModal('จัดการ '+b.batch_no,`<div class="notice"><strong>${esc(b.title)}</strong><br>สถานะ: ${badge(b.status)} · คำขอ ${b.requests.length} รายการ</div><div class="section-title">รายการจัดซื้อและรับเข้า</div><div class="table-wrap mobile-stack-table procurement-detail-table"><table class="table"><thead><tr><th>สินค้า</th><th>สั่ง</th><th>รับแล้ว</th><th>หน่วย</th></tr></thead><tbody>${b.items.map(i=>`<tr><td>${esc(i.item_name_snapshot)}</td><td>${money(i.quantity_ordered)}</td><td>${b.status!=='draft'?`<input class="form-control proc-received" data-id="${i.id}" type="number" min="0" max="${i.quantity_ordered}" step="0.01" value="${i.quantity_received}">`:money(i.quantity_received)}</td><td>${esc(i.unit_snapshot)}</td></tr>`).join('')}</tbody></table></div><div class="section-title">สมาชิกที่เตรียมรับสินค้า</div>${deliveries.length?`<div class="table-wrap mobile-stack-table procurement-delivery-table"><table class="table"><thead><tr><th>สมาชิก</th><th>สถานะ</th><th>วันที่รับ</th><th></th></tr></thead><tbody>${deliveries.map(x=>`<tr><td>${esc(x.fullname)}</td><td>${badge(x.delivery_status)}</td><td>${x.delivery_date?new Date(x.delivery_date).toLocaleDateString('th-TH'):'-'}</td><td>${x.delivery_status==='delivered'?`<span class="badge badge-success">${esc(x.receipt_number||'รับแล้ว')}</span>`:`<button class="btn btn-primary btn-sm" onclick="deliverProduct(${x.id},${id})">${icon('box-seam')}บันทึกส่งมอบ</button>`}</td></tr>`).join('')}</tbody></table></div>`:empty('ยังไม่มีรายการรับสินค้า','box-seam')}`,`<button class="btn btn-secondary" onclick="closeModal()">ปิด</button>${b.items.length?`<button class="btn btn-secondary" onclick="receivingInspection(${id})">${icon('clipboard-check')}ตรวจรับสินค้าที่มาส่ง</button>`:''}${b.status==='received_complete'||b.status==='announced'?`<button class="btn btn-primary" onclick="announceProcurement(${id})">${icon('megaphone')}ประกาศพร้อมรับ</button>`:''}${b.status==='received_complete'||b.status==='announced'?`<button class="btn btn-secondary" onclick="prepareDeliveries(${id})">${icon('people')}เตรียมรายการสมาชิก</button>`:''}`)}
 async function receiveProcurement(id){const items=[...document.querySelectorAll('.proc-received')].map(x=>({id:Number(x.dataset.id),quantity_received:Number(x.value||0)}));const r=await api('api/procurement.php?action=receive',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batch_id:id,items})});if(r){closeModal();nav('procurement')}}
 async function announceProcurement(id){openModal('ประกาศพร้อมรับสินค้า',`<form id="announce-form"><div class="form-group"><label class="form-label">ข้อความประกาศ</label><textarea id="announce-text" class="form-control" rows="4">สินค้าตามรอบจัดซื้อพร้อมให้สมาชิกมารับที่สำนักงานกองทุนหมู่บ้าน</textarea></div><button class="btn btn-primary btn-block">${icon('megaphone')}ประกาศพร้อมรับสินค้า</button></form>`);$('#announce-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/procurement.php?action=announce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batch_id:id,announcement_text:$('#announce-text').value.trim()})});if(r){closeModal();nav('procurement')}})}
@@ -461,6 +543,21 @@ function showMemberForm(id){
       </div>
       <div class="form-grid">
         <div class="form-group">
+          <label class="form-label">สถานภาพสมรส</label>
+          <select class="form-select" id="m-marital" onchange="const box=$('#m-spouse-box');if(box)box.style.display=this.value==='married'?'block':'none'">
+            <option value="single" ${(!x?.marital_status || x?.marital_status === 'single' || x?.marital_status === 'โสด') ? 'selected' : ''}>โสด</option>
+            <option value="married" ${(x?.marital_status === 'married' || x?.marital_status === 'สมรส') ? 'selected' : ''}>สมรส</option>
+            <option value="widowed" ${(x?.marital_status === 'widowed' || x?.marital_status === 'หม้าย') ? 'selected' : ''}>หม้าย</option>
+            <option value="divorced" ${(x?.marital_status === 'divorced' || x?.marital_status === 'หย่า' || x?.marital_status === 'หย่าร้าง') ? 'selected' : ''}>หย่าร้าง</option>
+          </select>
+        </div>
+        <div class="form-group" id="m-spouse-box" style="${(x?.marital_status === 'married' || x?.marital_status === 'สมรส') ? '' : 'display:none'}">
+          <label class="form-label">ชื่อคู่สมรส (กรณีสมรส)</label>
+          <input class="form-control" id="m-spouse" value="${esc(x?.spouse_name || '')}" placeholder="ระบุชื่อคู่สมรส">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
           <label class="form-label">สถานะความเสี่ยง</label>
           <select class="form-select" id="m-risk">
             <option value="normal" ${x?.risk_status === 'normal' ? 'selected' : ''}>ปกติ</option>
@@ -495,6 +592,8 @@ async function saveMember(e){
     role: $('#m-role').value,
     phone: $('#m-phone').value.trim(),
     national_id: $('#m-nid').value.trim(),
+    marital_status: $('#m-marital')?.value || 'single',
+    spouse_name: $('#m-marital')?.value === 'married' ? $('#m-spouse')?.value.trim() : '',
     risk_status: $('#m-risk').value,
     address: $('#m-address').value
   };
@@ -1029,7 +1128,7 @@ async function printOfficialIndividualMember(memberId){
           <td><strong>เบอร์โทรศัพท์:</strong> ${esc(m.phone || '-')}</td>
         </tr>
         <tr>
-          <td><strong>สถานภาพสมรส:</strong> ${esc(m.marital_status)} ${m.spouse_name ? `(คู่สมรส: ${esc(m.spouse_name)})` : ''}</td>
+          <td><strong>สถานภาพสมรส:</strong> ${esc(maritalText(m.marital_status))} ${m.spouse_name ? `(คู่สมรส: ${esc(m.spouse_name)})` : ''}</td>
           <td><strong>สถานะความเสี่ยง:</strong> ${esc(m.risk_status === 'normal' ? 'ปกติ' : m.risk_status)}</td>
         </tr>
         <tr>
@@ -1555,7 +1654,7 @@ async function renderMemberIndividual(container){
         <div><span class="text-muted small">รหัสสมาชิก:</span> <strong>${esc(m.username)}</strong></div>
         <div><span class="text-muted small">เลขประจำตัวประชาชน:</span> <strong>${esc(m.national_id || '-')}</strong></div>
         <div><span class="text-muted small">เบอร์โทรศัพท์:</span> <strong>${esc(m.phone || '-')}</strong></div>
-        <div><span class="text-muted small">สถานภาพ:</span> <strong>${esc(m.marital_status)}</strong> ${m.spouse_name ? `(คู่สมรส: ${esc(m.spouse_name)})` : ''}</div>
+        <div><span class="text-muted small">สถานภาพ:</span> <strong>${esc(maritalText(m.marital_status))}</strong> ${m.spouse_name ? `(คู่สมรส: ${esc(m.spouse_name)})` : ''}</div>
         <div><span class="text-muted small">ที่อยู่:</span> <strong>${esc(m.address || '-')}</strong></div>
       </div>
     </div>
@@ -2013,7 +2112,7 @@ function generateFormHtml(type, d){
 async function line(c){c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">ประกาศแจ้งเตือน LINE</h2><p class="card-subtitle">ประกาศไปยังกลุ่ม LINE ที่กำหนดไว้ในระบบ</p></div></div><form id="line-form"><div class="form-group"><label class="form-label">ข้อความประกาศ</label><textarea class="form-control" id="line-msg" placeholder="เขียนข้อความประกาศถึงกลุ่ม LINE" required></textarea></div><button class="btn btn-primary" type="submit">${icon('send')}ส่งประกาศ</button></form><div class="notice" style="margin-top:15px">ข้อความจะส่งไปยังกลุ่ม LINE ที่ตั้งค่า Group ID ไว้ในระบบ</div></div>`;$('#line-form').addEventListener('submit',async e=>{e.preventDefault();const r=await api('api/line_notify.php?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:$('#line-msg').value})});if(r)toast(r.message)})}
 async function risk(c){const r=await api('api/members.php?action=list');const rows=(r?.data||[]).filter(x=>x.risk_status!=='normal');c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">จัดการสถานะสมาชิกกรณีพิเศษ</h2><p class="card-subtitle">พักชำระหนี้หรือเสียชีวิต โดยเก็บข้อมูลย้อนหลังไว้</p></div></div>${rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>สมาชิก</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.fullname)}</td><td><span class="badge badge-warning">${esc(x.risk_status)}</span></td><td><button class="btn btn-secondary btn-sm" onclick="restoreRisk(${x.id})">${icon('arrow-counterclockwise')}เปลี่ยนเป็นปกติ</button></td></tr>`).join('')}</tbody></table></div>`:empty('ไม่มีสมาชิกในสถานะพิเศษ','shield-check')}</div>`}
 async function restoreRisk(id){const r=await api('api/members.php?action=update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,risk_status:'normal'})});if(r)nav('risk')}
-async function profile(c){const u=state.user;c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">ข้อมูลของฉัน</h2><p class="card-subtitle">ข้อมูลบัญชีผู้ใช้งาน</p></div></div><div class="form-grid"><div><div class="small text-muted">ชื่อผู้ใช้</div><strong>${esc(u.username)}</strong></div><div><div class="small text-muted">ชื่อ-นามสกุล</div><strong>${esc(u.fullname)}</strong></div><div><div class="small text-muted">เบอร์โทรศัพท์</div><strong>${esc(u.phone)}</strong></div><div><div class="small text-muted">สถานะ</div>${u.risk_status==='normal'?'<span class="badge badge-success">ปกติ</span>':`<span class="badge badge-warning">${esc(u.risk_status)}</span>`}</div></div><div class="divider"></div><button class="btn btn-secondary" onclick="showSelfPassword()">${icon('key')}เปลี่ยนรหัสผ่าน</button></div>`}
+async function profile(c){const u=state.user;c.innerHTML=`<div class="card"><div class="card-header"><div><h2 class="card-title">ข้อมูลของฉัน</h2><p class="card-subtitle">ข้อมูลบัญชีผู้ใช้งาน</p></div></div><div class="form-grid"><div><div class="small text-muted">ชื่อผู้ใช้</div><strong>${esc(u.username)}</strong></div><div><div class="small text-muted">ชื่อ-นามสกุล</div><strong>${esc(u.fullname)}</strong></div><div><div class="small text-muted">เบอร์โทรศัพท์</div><strong>${esc(u.phone)}</strong></div><div><div class="small text-muted">สถานภาพสมรส</div><strong>${esc(maritalText(u.marital_status))}</strong> ${u.spouse_name ? `(คู่สมรส: ${esc(u.spouse_name)})` : ''}</div><div><div class="small text-muted">สถานะ</div>${u.risk_status==='normal'?'<span class="badge badge-success">ปกติ</span>':`<span class="badge badge-warning">${esc(u.risk_status)}</span>`}</div></div><div class="divider"></div><button class="btn btn-secondary" onclick="showSelfPassword()">${icon('key')}เปลี่ยนรหัสผ่าน</button></div>`}
 function showSelfPassword(){openModal('เปลี่ยนรหัสผ่าน',`<form id="pw-form"><div class="form-group"><label class="form-label">รหัสผ่านใหม่</label><input type="password" id="new-pw" class="form-control" minlength="8" required></div><div class="form-group"><label class="form-label">ยืนยันรหัสผ่าน</label><input type="password" id="new-pw2" class="form-control" minlength="8" required></div><button class="btn btn-primary btn-block">${icon('shield-lock')}บันทึกรหัสผ่าน</button></form>`);$('#pw-form').addEventListener('submit',async e=>{e.preventDefault();if($('#new-pw').value!==$('#new-pw2').value)return toast('รหัสผ่านไม่ตรงกัน','error');const r=await api('api/members.php?action=update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:state.user.id,password:$('#new-pw').value})});if(r){closeModal();toast('เปลี่ยนรหัสผ่านแล้ว')}})}
 async function boot(){const r=await api('api/auth.php?action=status');state.stationMember=null;state.stationContext=false;if(r?.logged_in){state.user=r.user;renderShell()}else renderLogin()}
 document.addEventListener('DOMContentLoaded',boot);

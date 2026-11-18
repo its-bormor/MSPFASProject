@@ -18,6 +18,6 @@
 </head>
 <body>
     <div id="app" aria-live="polite"></div>
-    <script src="assets/js/main.js?v=20261116-1" defer></script>
+    <script src="assets/js/main.js?v=20261118-1" defer></script>
 </body>
 </html>
